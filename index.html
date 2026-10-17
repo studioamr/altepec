@@ -322,7 +322,7 @@ dialog::backdrop{background:rgba(16,21,33,.55);backdrop-filter:blur(4px)}
   <div class="stage" id="stage">
     <div class="pin3d" id="pin"><b id="pinTxt"></b><i></i></div>
     <div class="scale"><span id="scaleBar"></span><em id="scaleTxt" style="font-style:normal"></em></div>
-    <div class="legal3d">Imagen satelital real de la zona. Ubicación indicativa; el polígono y el proyecto son ilustrativos.</div>
+    <div class="legal3d">Imagen satelital real de la zona. Ubicación indicativa y polígono aproximado; la ubicación exacta se comparte bajo confidencialidad.</div>
     <div class="attr">Imagen: Esri, Maxar, Earthstar Geographics</div>
     <div class="loading">Cargando imagen satelital…</div>
   </div>
@@ -362,10 +362,6 @@ dialog::backdrop{background:rgba(16,21,33,.55);backdrop-filter:blur(4px)}
     </div>
   </aside>
 
-  <div class="typos">
-    <div class="chips glass" id="chips" role="tablist" aria-label="Tipo de proyecto"></div>
-    <div class="metrics" id="metrics"></div>
-  </div>
 
   <div class="bottom">
     <div class="card glass">
@@ -424,7 +420,7 @@ dialog::backdrop{background:rgba(16,21,33,.55);backdrop-filter:blur(4px)}
   <div class="wrap">
     <div class="sec-h">
       <div class="eyebrow">02 · Proyectos</div>
-      <div><h2>Lo que se puede <span class="serif">construir.</span></h2><p>Seis tipos de desarrollo que se prestan en el portafolio. En el explorador puede ver cada uno sobre el predio, a escala real y con su área construida estimada.</p></div>
+      <div><h2>Lo que se puede <span class="serif">construir.</span></h2><p>Seis tipos de desarrollo que se prestan en el portafolio. Cada ficha indica cuáles admite el predio. Imágenes ilustrativas.</p></div>
     </div>
     <div class="types" id="types"></div>
   </div>
@@ -759,12 +755,26 @@ function makeProject(t,type){
   return {G,P,S,metrics:{gfa,modules,etapa,maxH:Math.max(maxH,8),cov:built/(t.ha*1e4)}};
 }
 
+/* trazo del predio sobre el satélite: relleno suave, borde con contorno blanco y vértices */
+function makeOutline(t){
+  const P=plotOf(t),G=new THREE.Group(),mass=new THREE.Group();mass.name='mass';G.add(mass);
+  const S=Math.max(P.w,P.h),shape=new THREE.Shape(P.pts.map(([x,z])=>new THREE.Vector2(x,-z)));
+  const fill=new THREE.Mesh(new THREE.ShapeGeometry(shape),new THREE.MeshBasicMaterial({color:0x2F6BFF,transparent:true,opacity:.16,depthWrite:false}));fill.rotation.x=-Math.PI/2;fill.position.y=.3;fill.renderOrder=2;G.add(fill);
+  const loop=[...P.pts,P.pts[0]].map(([x,z])=>new THREE.Vector3(x,.6,z)),path=new THREE.CurvePath();for(let i=0;i<loop.length-1;i++)path.add(new THREE.LineCurve3(loop[i],loop[i+1]));
+  const r=Math.max(.8,S/300);
+  G.add(new THREE.Mesh(new THREE.TubeGeometry(path,loop.length*10,r*1.9,8,false),new THREE.MeshBasicMaterial({color:0xffffff})));
+  const blue=new THREE.Mesh(new THREE.TubeGeometry(path,loop.length*10,r,8,false),new THREE.MeshBasicMaterial({color:0x1E4AA8}));blue.position.y=r*.9;G.add(blue);
+  const dot=new THREE.CylinderGeometry(1,1,1,24);
+  P.pts.forEach(([x,z])=>{const a=new THREE.Mesh(dot,new THREE.MeshBasicMaterial({color:0xffffff}));a.scale.set(r*4,r*1.4,r*4);a.position.set(x,r*1.2,z);G.add(a);const b=new THREE.Mesh(dot,new THREE.MeshBasicMaterial({color:0x1E4AA8}));b.scale.set(r*2.6,r*1.6,r*2.6);b.position.set(x,r*1.3,z);G.add(b)});
+  return {G,P,S,metrics:{maxH:0}};
+}
+
 /* imagen satelital real */
 const lon2x=(lon,z)=>(lon+180)/360*2**z;
 const lat2y=(lat,z)=>{const r=lat*Math.PI/180;return(1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*2**z};
 const mpp=(lat,z)=>156543.03392*Math.cos(lat*Math.PI/180)/2**z;
 const tileURL=(z,x,y)=>`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
-const zoomFor=(lat,S)=>Math.max(12,Math.min(18,Math.round(Math.log2(256*mpp(lat,0)/(S*.62)))));
+const zoomFor=(lat,S)=>Math.max(12,Math.min(18,Math.round(Math.log2(256*mpp(lat,0)/(S*.5)))));
 const groundCache=new Map();
 const loadImg=u=>new Promise(r=>{const i=new Image();i.crossOrigin='anonymous';i.onload=()=>r(i);i.onerror=()=>r(null);i.src=u});
 async function ground(t,S){
@@ -792,7 +802,7 @@ scene.environment=new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironme
 scene.add(new THREE.HemisphereLight(0xffffff,0xD8CFBF,.7));
 const sun=new THREE.DirectionalLight(0xfff3e2,2.6);sun.castShadow=true;sun.shadow.mapSize.set(4096,4096);sun.shadow.radius=3;sun.shadow.bias=-.0004;scene.add(sun,sun.target);
 const controls=new OrbitControls(cam,renderer.domElement);
-controls.enableDamping=true;controls.dampingFactor=.06;controls.maxPolarAngle=1.22;controls.minPolarAngle=.35;controls.enablePan=false;controls.autoRotate=!reduced;controls.autoRotateSpeed=.4;
+controls.enableDamping=true;controls.dampingFactor=.06;controls.maxPolarAngle=1.0;controls.minPolarAngle=.15;controls.enablePan=false;controls.autoRotate=!reduced;controls.autoRotateSpeed=.4;
 function resize(){const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h,false);cam.aspect=w/h;if(desk())cam.setViewOffset(w,h,0,36,w,h);else cam.clearViewOffset();cam.updateProjectionMatrix()}
 new ResizeObserver(resize).observe(stage);
 
@@ -800,7 +810,7 @@ let world=null,groundMesh=null,shadowCatch=null,cur=-1,typeK='parque',grow0=0,to
 const dispose=o=>o.traverse(n=>{if(n.geometry&&n.geometry!==BOX&&n.geometry!==SPH&&n.geometry!==CYL)n.geometry.dispose()});
 async function setWorld(t,type){
   const my=++token;stage.classList.add('busy');
-  const proj=makeProject(t,type),gr=await ground(t,proj.S);
+  const proj=makeOutline(t),gr=await ground(t,proj.S);
   if(my!==token){dispose(proj.G);return}
   if(world){scene.remove(world.G);dispose(world.G)}
   if(groundMesh){scene.remove(groundMesh,shadowCatch);groundMesh.geometry.dispose();shadowCatch.geometry.dispose()}
@@ -809,16 +819,16 @@ async function setWorld(t,type){
   shadowCatch=new THREE.Mesh(new THREE.PlaneGeometry(gr.size,gr.size),new THREE.ShadowMaterial({opacity:.38}));shadowCatch.rotation.x=-Math.PI/2;shadowCatch.position.set(gr.ox,-.05,gr.oz);shadowCatch.receiveShadow=true;
   scene.add(groundMesh,shadowCatch);
   world=proj;scene.add(world.G);
-  const S=proj.S,dist=S*(desk()?2.5:2.3)+180;
+  const S=proj.S,dist=S*(desk()?3.6:3.2)+220;
   scene.fog.near=dist*1.1;scene.fog.far=dist*3.4;
   sun.position.set(-S*.55,S*1.1,S*.45);Object.assign(sun.shadow.camera,{left:-S*.75,right:S*.75,top:S*.75,bottom:-S*.75,near:1,far:S*4});sun.shadow.camera.updateProjectionMatrix();sun.shadow.normalBias=S/900;
   const az=controls.getAzimuthalAngle()||.7;controls.target.set(0,0,0);
-  cam.position.set(Math.sin(az)*dist*.8,dist*.6,Math.cos(az)*dist*.8);
+  cam.position.set(Math.sin(az)*dist*.5,dist*.86,Math.cos(az)*dist*.5);
   controls.minDistance=Math.max(80,dist*.35);controls.maxDistance=dist*1.7;cam.far=dist*8;cam.updateProjectionMatrix();
   grow0=performance.now();
   const target=S*.25,nice=[25,50,100,200,250,500,1000,2000].reduce((a,b)=>Math.abs(b-target)<Math.abs(a-target)?b:a);
   $('#scaleTxt').textContent=nice>=1000?(nice/1000)+' km':nice+' m';world.nice=nice;
-  stage.classList.remove('busy','fade');showMetrics(proj.metrics,type);
+  stage.classList.remove('busy','fade');
   setTimeout(()=>{if(typeof step==='function'){const n=INV[step(1)];if(n){const q=plotOf(n);ground(n,Math.max(q.w,q.h))}}},1500);
 }
 const pv=new THREE.Vector3();
@@ -827,7 +837,7 @@ function tick(now){
   if(world){
     for(const b of world.G.getObjectByName('mass').children){if(!b.userData.g)continue;const k=Math.min(1,Math.max(0,(now-grow0-b.userData.d)/700)),e=reduced?1:1-Math.pow(1-k,3);if(b.userData.g===2){b.scale.y=Math.max(.01,e);continue}const h=Math.max(.01,b.userData.h*e);b.scale.y=h;b.position.y=b.userData.y+h/2}
     const W=stage.clientWidth,H=stage.clientHeight;
-    pv.set(0,world.metrics.maxH+world.S*.04,0).project(cam);
+    pv.set(0,world.S*.02,-world.P.h*.5).project(cam);
     $('#pin').style.transform=`translate(${(pv.x*.5+.5)*W}px,${(-pv.y*.5+.5)*H}px) translate(-50%,-100%)`;
     const a=new THREE.Vector3(-world.nice/2,0,world.P.h/2).project(cam),b=new THREE.Vector3(world.nice/2,0,world.P.h/2).project(cam);
     $('#scaleBar').style.width=Math.max(16,Math.abs(b.x-a.x)*.5*W).toFixed(0)+'px';
@@ -855,8 +865,6 @@ requestAnimationFrame(()=>document.querySelectorAll('#bars .bar div').forEach(d=
 $('#loKpi').innerHTML=`$${fmt(lo.precioM2)}<small> MXN/m²</small>`;$('#loNote').textContent=`${lo.id} · ${lo.zona}, ${lo.estado}`;
 $('#loBars').innerHTML=`<span class="lo" style="height:${Math.max(8,lo.precioM2/median*60)}%"></span><span style="height:60%" title="Mediana $${fmt(median)}"></span>`;
 
-$('#chips').innerHTML=TYPES.map(x=>`<button data-k="${x.k}" role="tab">${x.n}</button>`).join('');
-$('#chips').addEventListener('click',e=>{const b=e.target.closest('button');if(b){pauseAuto();setType(b.dataset.k)}});
 const markType=k=>document.querySelectorAll('#chips button').forEach(b=>{b.classList.toggle('on',b.dataset.k===k);b.setAttribute('aria-selected',b.dataset.k===k)});
 function setType(k){typeK=k;markType(k);if(cur>=0){stage.classList.add('fade');setTimeout(()=>setWorld(INV[cur],k),reduced?0:250)}}
 function showMetrics(m,type){const lbl={parque:'naves',logistico:'naves',bts:'nave',plaza:'ancla, locales y restaurante',mixtos:'edificios',agro:'empaque e invernaderos'}[type];
@@ -925,8 +933,8 @@ $('#mkts').innerHTML=Object.entries(MK).map(([k,m])=>{const n=INV.filter(t=>t.me
 $('#mkts').addEventListener('click',e=>{const b=e.target.closest('.mkt');if(!b)return;document.querySelectorAll('.mkt').forEach(x=>x.classList.toggle('on',x===b));if(map)map.fitBounds(BB[b.dataset.k],{padding:80,maxZoom:10})});
 
 /* tipos de proyecto: renders */
-$('#types').innerHTML=TYPES.map((x,i)=>`<article class="type rv"><div class="img" id="ty-${x.k}"></div><div class="b"><div class="n">${String(i+1).padStart(2,'0')}</div><h3>${x.n}</h3><p>${x.d}</p><div class="spec">${x.spec.map(s=>`<span>${s}</span>`).join('')}</div><button data-k="${x.k}">Verlo sobre el predio actual →</button></div></article>`).join('');
-$('#types').addEventListener('click',e=>{const b=e.target.closest('button[data-k]');if(!b)return;pauseAuto();$('#explorar').scrollIntoView({behavior:'smooth'});setTimeout(()=>setType(b.dataset.k),300)});
+$('#types').innerHTML=TYPES.map((x,i)=>`<article class="type rv"><div class="img" id="ty-${x.k}"></div><div class="b"><div class="n">${String(i+1).padStart(2,'0')}</div><h3>${x.n}</h3><p>${x.d}</p><div class="spec">${x.spec.map(s=>`<span>${s}</span>`).join('')}</div></div></article>`).join('');
+
 async function renderTypes(){
   const tr=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true,logarithmicDepthBuffer:true});tr.setPixelRatio(1);tr.setSize(640,400);tr.shadowMap.enabled=true;tr.toneMapping=THREE.ACESFilmicToneMapping;tr.outputColorSpace=THREE.SRGBColorSpace;tr.setClearColor(0xEEE9E0,1);
   const sc=new THREE.Scene();sc.environment=new THREE.PMREMGenerator(tr).fromScene(new RoomEnvironment(),.04).texture;sc.environmentIntensity=.55;sc.fog=new THREE.Fog(0xEEE9E0,900,2400);sc.add(new THREE.HemisphereLight(0xffffff,0xD8CFBF,.7));tr.toneMappingExposure=.92;
