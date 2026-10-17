@@ -1,0 +1,957 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ALTEPEC · Suelo industrial para nearshoring en México</title>
+<meta name="description" content="Portafolio de predios industriales, logísticos y agroindustriales en 14 estados de México, con visualización 3D sobre imagen satelital y escenarios de desarrollo. Atención a inversionistas de Norteamérica, Europa y Asia.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<style>
+:root{
+  --bg1:#F6F3EE; --bg2:#ECE6DC; --ink:#14181F; --ink-2:#4A505B; --ink-3:#8A8F98;
+  --glass:rgba(255,255,255,.74); --glass-b:rgba(255,255,255,.92); --line:rgba(20,24,31,.08);
+  --blue:#1E4AA8; --blue-2:#163A86; --blue-50:#E6ECF7;
+  --jade:#2D7A5A; --jade-50:#E2F1EA; --clay:#B4532A; --clay-50:#F6E7DF; --jac:#7A5BA6; --jac-50:#EEE8F6;
+  --r:20px; --shadow:0 10px 30px rgba(40,44,60,.10),0 1px 2px rgba(40,44,60,.06);
+  --sans:"Manrope",system-ui,sans-serif; --serif:"Instrument Serif",Georgia,serif;
+  --max:1280px; --gut:clamp(16px,4vw,48px);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font:500 15px/1.5 var(--sans);color:var(--ink);background:var(--bg1);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+.glass{background:var(--glass);backdrop-filter:blur(16px) saturate(140%);-webkit-backdrop-filter:blur(16px) saturate(140%);border:1px solid var(--glass-b);border-radius:var(--r);box-shadow:var(--shadow)}
+.wrap{max-width:var(--max);margin:0 auto;padding:0 var(--gut)}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--blue)}
+.serif{font-family:var(--serif);font-weight:400;font-style:italic;letter-spacing:0}
+
+.app{position:relative;height:100vh;min-height:760px;overflow:hidden;background:linear-gradient(180deg,#F3EFE8,#E9E3D8)}
+.stage{position:absolute;inset:0}
+.stage::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(243,239,232,.94) 0,rgba(243,239,232,.78) 300px,rgba(243,239,232,0) 520px),linear-gradient(270deg,rgba(243,239,232,.85) 0,rgba(243,239,232,0) 460px),linear-gradient(180deg,rgba(243,239,232,.9) 0,rgba(243,239,232,0) 150px),linear-gradient(0deg,rgba(243,239,232,.85) 0,rgba(243,239,232,0) 260px)}
+.stage>*:not(canvas){z-index:2}
+.stage canvas{display:block;width:100%;height:100%;transition:opacity .4s ease}
+.stage.fade canvas{opacity:0}
+.loading{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:13px;font-weight:700;color:var(--ink-2);background:var(--glass);padding:10px 16px;border-radius:999px;backdrop-filter:blur(8px);opacity:0;transition:opacity .2s;pointer-events:none}
+.stage.busy .loading{opacity:1}
+.pin3d{position:absolute;left:0;top:0;pointer-events:none;white-space:nowrap;display:flex;flex-direction:column;align-items:center;gap:4px}
+.pin3d b{background:var(--ink);color:#fff;font-size:12px;font-weight:700;padding:6px 10px;border-radius:999px;box-shadow:var(--shadow)}
+.pin3d i{width:1px;height:26px;background:linear-gradient(var(--ink),transparent)}
+.scale{position:absolute;right:398px;bottom:280px;display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:var(--ink-2);background:rgba(255,255,255,.78);padding:6px 10px;border-radius:999px;backdrop-filter:blur(8px)}
+.scale span{display:block;height:5px;border:1.5px solid var(--ink-2);border-top:0}
+.legal3d{position:absolute;left:388px;bottom:250px;font-size:10.5px;font-weight:600;color:var(--ink-2);background:rgba(255,255,255,.72);padding:5px 9px;border-radius:8px;max-width:290px;backdrop-filter:blur(6px)}
+.attr{position:absolute;right:398px;bottom:250px;font-size:10px;color:var(--ink-2);background:rgba(255,255,255,.6);padding:3px 7px;border-radius:6px}
+
+.top{position:absolute;top:18px;left:24px;right:24px;display:flex;align-items:center;justify-content:space-between;gap:16px;z-index:6}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;letter-spacing:.06em}
+.logo{width:40px;height:40px;border-radius:12px;background:var(--blue);display:grid;place-items:center;box-shadow:0 6px 16px rgba(30,74,168,.35)}
+.brand small{display:block;font-size:10.5px;letter-spacing:.04em;color:var(--ink-3);font-weight:700;margin-top:1px}
+.tabs{display:flex;gap:4px;padding:6px;border-radius:999px}
+.tabs a{padding:9px 15px;border-radius:999px;font-weight:600;color:var(--ink-2);display:flex;align-items:center;gap:8px;white-space:nowrap;font-size:14px}
+.tabs a:hover{background:rgba(255,255,255,.85);color:var(--ink)}
+.tabs a.on{background:var(--blue);color:#fff;box-shadow:0 6px 14px rgba(30,74,168,.35)}
+.right{display:flex;align-items:center;gap:8px}
+.ib{width:40px;height:40px;border-radius:12px;display:grid;place-items:center}
+.ib:hover{background:#fff}
+.user{display:flex;align-items:center;gap:10px;padding:5px 14px 5px 5px;border-radius:14px}
+.av{width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,#14181F,#3A4357);color:#fff;font-size:12px;font-weight:800;display:grid;place-items:center}
+.user b{display:block;font-size:13px;line-height:1.1}
+.user small{color:var(--ink-3);font-size:11px}
+
+.left{position:absolute;left:24px;top:92px;width:340px;z-index:5;display:flex;flex-direction:column;gap:12px}
+.left .site{font-size:12px;font-weight:700;color:var(--blue);letter-spacing:.06em;text-transform:uppercase}
+.left h1{font-size:31px;line-height:1.06;letter-spacing:-.03em;font-weight:800;text-shadow:0 1px 0 rgba(255,255,255,.7)}
+.left .sub{color:var(--ink-2);font-size:14px;max-width:34ch;text-shadow:0 1px 0 rgba(255,255,255,.7)}
+.tools{display:flex;gap:8px}
+.tools button,.tools a{height:40px;min-width:40px;padding:0 12px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700;font-size:13px;background:var(--glass);border:1px solid var(--glass-b);backdrop-filter:blur(10px);box-shadow:0 2px 6px rgba(40,44,60,.06)}
+.tools .on{background:var(--blue);color:#fff;border-color:var(--blue);box-shadow:0 6px 14px rgba(30,74,168,.35)}
+.card{padding:16px}
+.card-h{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.card-h h3{font-size:16px;font-weight:800;letter-spacing:-.01em}
+.card-h p{font-size:12px;color:var(--ink-3)}
+.go{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);display:grid;place-items:center;background:#fff;flex:none}
+.go:hover{background:var(--blue);color:#fff;border-color:var(--blue)}
+.live{display:flex;align-items:center;gap:6px;color:var(--jade);font-size:12px;font-weight:700;margin-top:2px}
+.live i{width:7px;height:7px;border-radius:50%;background:var(--jade);box-shadow:0 0 0 3px var(--jade-50)}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.stat{background:rgba(255,255,255,.82);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+.stat .k{display:flex;justify-content:space-between;color:var(--ink-3);font-size:12px;font-weight:600}
+.stat .k svg{color:var(--blue)}
+.stat .v{font-size:19px;font-weight:800;letter-spacing:-.02em;margin-top:5px;line-height:1.1}
+.stat .v small{font-size:12px;font-weight:700;color:var(--ink-2);margin-left:2px}
+
+.typos{position:absolute;top:92px;left:388px;right:398px;z-index:5;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
+.chips{display:flex;gap:2px;padding:5px;border-radius:999px;pointer-events:auto;flex-wrap:wrap;justify-content:center}
+.chips button{padding:7px 9px;border-radius:999px;font-weight:700;font-size:11.5px;color:var(--ink-2);white-space:nowrap}
+.chips button:hover{background:#fff;color:var(--ink)}
+.chips button.on{background:var(--ink);color:#fff}
+.metrics{display:flex;gap:6px;pointer-events:auto;flex-wrap:wrap;justify-content:center}
+.metrics span{font-size:12px;font-weight:700;background:rgba(255,255,255,.84);border:1px solid var(--glass-b);padding:6px 10px;border-radius:10px;backdrop-filter:blur(8px)}
+.metrics span b{color:var(--blue)}
+
+.bottom{position:absolute;left:24px;right:398px;bottom:24px;height:210px;display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:14px;z-index:5}
+.mix{display:grid;grid-template-columns:168px 1fr;gap:14px;margin-top:12px;height:calc(100% - 52px)}
+.legend{display:flex;flex-direction:column;gap:7px;justify-content:center}
+.legend div{font-size:12px;font-weight:700}
+.legend div::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--c);margin-right:7px;vertical-align:1px}
+.legend span{display:inline-block;margin-left:6px;font-size:10.5px;font-weight:700;color:var(--c);background:var(--cb);padding:1px 6px;border-radius:6px}
+.bars{display:flex;align-items:flex-end;gap:8px;height:100%}
+.bar{flex:1;display:flex;flex-direction:column;gap:6px;height:100%;justify-content:flex-end}
+.bar b{font-size:15px;font-weight:800;letter-spacing:-.02em}
+.bar div{border-radius:10px;background-image:radial-gradient(circle,var(--c) 1.6px,transparent 1.9px);background-size:7px 7px;background-color:var(--cb);transition:height .6s cubic-bezier(.2,.8,.2,1)}
+.kpi{font-size:28px;font-weight:800;letter-spacing:-.03em;margin-top:8px}
+.kpi small{font-size:13px;color:var(--ink-3);font-weight:700}
+.minibars{display:flex;align-items:flex-end;gap:3px;height:60px;margin-top:8px}
+.minibars span{flex:1;border-radius:4px 4px 0 0;background:#DCE3EF;transition:height .5s,background .3s}
+.minibars span.me{background:var(--blue)}
+.minibars span.lo{background:var(--clay)}
+.note{font-size:11px;color:var(--ink-3);margin-top:6px}
+
+.list{position:absolute;right:24px;top:92px;bottom:24px;width:358px;z-index:5;display:flex;flex-direction:column;padding:16px 12px 12px}
+.list .card-h{padding:0 4px 10px}
+.mk{margin:0 4px 10px;height:38px;border-radius:12px;border:1px solid var(--line);background:#fff;font:700 13px var(--sans);padding:0 10px;color:var(--ink)}
+.items{overflow:auto;display:flex;flex-direction:column;gap:10px;padding:2px 4px 4px;scrollbar-width:thin}
+.it{display:grid;grid-template-columns:100px 1fr;gap:12px;padding:8px;border-radius:16px;background:rgba(255,255,255,.78);border:1px solid var(--line);text-align:left;transition:border-color .2s,box-shadow .2s,transform .2s}
+.it:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(40,44,60,.10)}
+.it.on{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-50)}
+.thumb{width:100px;height:96px;border-radius:12px;background-color:#DCD6CB;background-repeat:no-repeat;position:relative;overflow:hidden}
+.thumb::after{content:"";position:absolute;left:50%;top:50%;width:24px;height:18px;transform:translate(-50%,-50%);border:2px solid #fff;border-radius:3px;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+.it h4{font-size:13.5px;font-weight:800;letter-spacing:-.01em;line-height:1.2}
+.it .z{font-size:11px;color:var(--ink-3);margin-top:2px}
+.pill{font-size:10px;font-weight:800;padding:3px 7px;border-radius:6px;white-space:nowrap;display:inline-block}
+.pill.b{color:var(--blue);background:var(--blue-50)}
+.it dl{display:grid;grid-template-columns:1fr 1fr;gap:3px 10px;margin-top:7px}
+.it dt{font-size:10px;color:var(--ink-3);font-weight:600}
+.it dd{font-size:12px;font-weight:800}
+.auto{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--ink-2)}
+.prog{height:3px;border-radius:3px;background:rgba(20,24,31,.08);overflow:hidden;width:56px}
+.prog i{display:block;height:100%;width:0;background:var(--blue)}
+
+@media (max-width:1180px){
+  .app{height:auto;min-height:0;overflow:visible;padding:76px 16px 24px;display:flex;flex-direction:column;gap:14px}
+  .stage{position:relative;inset:auto;height:60vh;min-height:360px;border-radius:var(--r);overflow:hidden;order:3}
+  .top{position:fixed;top:0;left:0;right:0;padding:12px 16px;background:rgba(246,243,238,.9);backdrop-filter:blur(12px);z-index:30}
+  .tabs,.user div,.ib.hide-m,.brand small{display:none}
+  .left,.bottom,.list,.typos{position:static;width:auto;height:auto}
+  .left{order:1}.left h1{font-size:27px}
+  .typos{order:2;align-items:stretch}
+  .chips{flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;border-radius:16px;scrollbar-width:none}
+  .metrics{justify-content:flex-start}
+  .bottom{order:4;grid-template-columns:1fr;gap:14px}
+  .bottom .card{min-height:180px}
+  .list{order:5}
+  .items{overflow:visible}
+  .scale{bottom:12px;right:auto;left:12px}.legal3d{left:12px;bottom:46px;max-width:72%}.attr{right:12px;bottom:12px}
+  .stage::after{background:linear-gradient(0deg,rgba(243,239,232,.6) 0,rgba(243,239,232,0) 90px)}
+}
+
+section{padding:110px 0}
+.sec-h{display:grid;grid-template-columns:240px 1fr;gap:32px;margin-bottom:52px}
+.sec-h h2{font-size:clamp(32px,4.4vw,60px);line-height:1;letter-spacing:-.035em;font-weight:800;max-width:17ch}
+.sec-h h2 .serif{font-size:1.08em;color:var(--blue)}
+.sec-h p{margin-top:18px;max-width:62ch;color:var(--ink-2);font-size:16.5px}
+@media (max-width:820px){.sec-h{grid-template-columns:1fr;gap:12px}section{padding:76px 0}}
+
+.statement{padding:120px 0 90px;border-bottom:1px solid var(--line)}
+.statement h2{font-size:clamp(40px,6.4vw,92px);line-height:.98;letter-spacing:-.04em;font-weight:800;max-width:16ch}
+.statement h2 .serif{color:var(--blue);font-size:1.06em}
+.statement .row{display:flex;justify-content:space-between;gap:40px;flex-wrap:wrap;align-items:flex-end;margin-top:40px}
+.statement p{max-width:54ch;color:var(--ink-2);font-size:18px}
+.counters{display:flex;border:1px solid var(--line);border-radius:18px;background:#fff;overflow:hidden}
+.counters div{padding:18px 26px;border-right:1px solid var(--line)}
+.counters div:last-child{border-right:0}
+.counters b{display:block;font-size:36px;font-weight:800;letter-spacing:-.03em;line-height:1}
+.counters span{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+@media (max-width:560px){.counters{width:100%}.counters div{flex:1;padding:14px 10px}.counters b{font-size:24px}}
+
+.mapwrap{display:grid;grid-template-columns:1.6fr 1fr;gap:20px}
+#map{height:580px;border-radius:var(--r);overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow);background:#E9E5DD}
+.mkts{display:flex;flex-direction:column;gap:10px;max-height:580px;overflow:auto;scrollbar-width:thin}
+.mkt{text-align:left;padding:16px 18px;border-radius:16px;background:#fff;border:1px solid var(--line);transition:border-color .2s,box-shadow .2s}
+.mkt:hover,.mkt.on{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-50)}
+.mkt .k{display:flex;justify-content:space-between;gap:10px;font-size:11px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em}
+.mkt h3{font-size:19px;font-weight:800;letter-spacing:-.015em;margin-top:6px}
+.mkt p{font-size:13.5px;color:var(--ink-2);margin-top:4px}
+.maplibregl-popup-content{border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);font-family:var(--sans)}
+.pop b{display:block;font-size:14px;font-weight:800;max-width:240px}
+.pop small{display:block;color:var(--ink-3);font-size:12px;margin:2px 0 10px}
+.pop button{background:var(--blue);color:#fff;font-weight:700;font-size:12px;padding:7px 12px;border-radius:9px}
+@media (max-width:960px){.mapwrap{grid-template-columns:1fr}#map{height:440px}.mkts{max-height:none}}
+
+.types{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.type{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;box-shadow:0 2px 8px rgba(40,44,60,.04)}
+.type .img{aspect-ratio:16/10;background:linear-gradient(180deg,#F1ECE3,#E6DFD2) center/cover no-repeat}
+.type .b{padding:18px 20px 20px;display:flex;flex-direction:column;gap:8px;flex:1}
+.type .n{font-size:11px;font-weight:800;color:var(--blue);letter-spacing:.08em}
+.type h3{font-size:21px;font-weight:800;letter-spacing:-.02em}
+.type p{font-size:14px;color:var(--ink-2)}
+.type .spec{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.type .spec span{font-size:11px;font-weight:700;background:var(--bg1);border:1px solid var(--line);padding:4px 8px;border-radius:8px}
+.type button{margin-top:auto;align-self:flex-start;font-weight:700;font-size:13px;color:var(--blue);border-bottom:1.5px solid var(--blue);padding-bottom:1px}
+@media (max-width:1000px){.types{grid-template-columns:1fr 1fr}}
+@media (max-width:640px){.types{grid-template-columns:1fr}}
+
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px}
+.chip{padding:9px 14px;border-radius:999px;font-weight:700;font-size:13px;background:#fff;border:1px solid var(--line);color:var(--ink-2)}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.lot{background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden;display:flex;flex-direction:column;transition:transform .2s,box-shadow .2s}
+.lot:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+.lot .img{aspect-ratio:4/3;background-color:#DCD6CB;background-repeat:no-repeat;position:relative}
+.lot .img::after{content:"";position:absolute;left:50%;top:50%;width:34px;height:26px;transform:translate(-50%,-50%);border:2px solid #fff;border-radius:4px;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+.lot .tag{position:absolute;left:10px;top:10px;background:rgba(20,24,31,.85);color:#fff;font-size:11px;font-weight:800;padding:4px 8px;border-radius:7px;z-index:1}
+.lot .av2{position:absolute;right:10px;top:10px;background:#fff;color:var(--jade);font-size:11px;font-weight:800;padding:4px 8px;border-radius:7px;z-index:1}
+.lot .b{padding:14px 16px 16px;display:flex;flex-direction:column;gap:4px;flex:1}
+.lot .z{font-size:12px;color:var(--ink-3)}
+.lot h3{font-size:15.5px;font-weight:800;letter-spacing:-.01em;line-height:1.25}
+.lot .ft{display:flex;justify-content:space-between;align-items:flex-end;margin-top:auto;padding-top:10px;border-top:1px solid var(--line)}
+.lot .ha{font-size:22px;font-weight:800;letter-spacing:-.02em}
+.lot .ha small{font-size:12px;margin-left:2px}
+.lot .px{font-size:12.5px;font-weight:800;text-align:right}
+.lot .px span{display:block;font-size:10px;color:var(--ink-3);font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.lot .act{display:flex;gap:8px;margin-top:10px}
+.lot .act button{flex:1;height:34px;border-radius:10px;font-size:12.5px;font-weight:800;border:1px solid var(--line)}
+.lot .act button.p{background:var(--blue);color:#fff;border-color:var(--blue)}
+@media (max-width:1100px){.grid{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:820px){.grid{grid-template-columns:1fr 1fr}}
+@media (max-width:520px){.grid{grid-template-columns:1fr}}
+
+.intl{background:#101521;color:#F2EFE9}
+.intl .sec-h h2{color:#fff}.intl .sec-h h2 .serif{color:#8FB0F0}
+.intl .sec-h p{color:#A9AFBC}
+.intl .eyebrow{color:#8FB0F0}
+.regions{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.region{border:1px solid #273046;border-radius:var(--r);padding:26px;background:linear-gradient(180deg,#161D2D,#121827)}
+.region .eyebrow{color:#E8A27E}
+.region h3{font-size:24px;font-weight:800;letter-spacing:-.02em;margin-top:10px;color:#fff}
+.region .big{font-size:54px;font-weight:800;letter-spacing:-.04em;line-height:1;margin-top:22px;color:#fff}
+.region .big small{font-size:14px;font-weight:600;color:#A9AFBC;margin-left:6px;letter-spacing:0}
+.region p{color:#A9AFBC;font-size:14px;margin-top:10px}
+.region ul{list-style:none;margin-top:16px;border-top:1px solid #273046}
+.region li{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #273046;font-size:14px}
+.region li span{font-weight:700;color:#fff}
+.region a{color:#7E8697;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;display:inline-block;margin-top:14px}
+.region a:hover{color:#E8A27E}
+.how{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:22px}
+.how div{border:1px solid #273046;border-radius:16px;padding:20px}
+.how i{font-style:normal;font-size:12px;font-weight:800;color:#E8A27E}
+.how h4{font-size:16px;font-weight:800;margin-top:8px;color:#fff}
+.how p{font-size:13.5px;color:#A9AFBC;margin-top:6px}
+.langs{display:flex;gap:10px;flex-wrap:wrap;margin-top:28px;align-items:center;color:#A9AFBC;font-size:14px}
+.langs span{font-size:12px;font-weight:800;letter-spacing:.06em;border:1px solid #273046;padding:8px 12px;border-radius:999px;color:#fff}
+@media (max-width:1000px){.regions{grid-template-columns:1fr}.how{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){.how{grid-template-columns:1fr}}
+
+.svc{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.svc div{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:24px}
+.svc i{font-style:normal;font-size:12px;font-weight:800;color:var(--blue)}
+.svc h3{font-size:19px;font-weight:800;margin-top:10px;letter-spacing:-.015em}
+.svc p{font-size:14px;color:var(--ink-2);margin-top:6px}
+@media (max-width:1000px){.svc{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){.svc{grid-template-columns:1fr}}
+
+.split{display:grid;grid-template-columns:1fr 1.15fr;gap:48px}
+.promise{list-style:none}
+.promise li{padding:18px 0;border-top:1px solid var(--line);display:grid;grid-template-columns:40px 1fr}
+.promise li:last-child{border-bottom:1px solid var(--line)}
+.promise i{font-style:normal;font-size:13px;font-weight:800;color:var(--clay);padding-top:2px}
+.promise h4{font-size:17px;font-weight:800}
+.promise p{color:var(--ink-2);font-size:14.5px;margin-top:3px}
+.formcard{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:26px;box-shadow:0 2px 10px rgba(40,44,60,.05)}
+form{display:grid;gap:14px}
+.f{display:grid;gap:6px}
+.f label{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.f input,.f select,.f textarea{font:500 15px var(--sans);padding:12px 14px;border:1px solid var(--line);background:var(--bg1);color:var(--ink);border-radius:12px;width:100%}
+.f textarea{min-height:96px;resize:vertical}
+.f input:focus,.f select:focus,.f textarea:focus{outline:2px solid var(--blue);outline-offset:-1px;background:#fff}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;height:46px;padding:0 22px;border-radius:12px;background:var(--blue);color:#fff;font-weight:800;font-size:14px;justify-self:start;box-shadow:0 6px 14px rgba(30,74,168,.28)}
+.btn:hover{background:var(--blue-2)}
+.sent{display:none;padding:12px 14px;border-radius:12px;background:var(--jade-50);color:var(--jade);font-size:14px;font-weight:700}
+.contact-list{list-style:none;margin-top:24px}
+.contact-list li{display:flex;justify-content:space-between;gap:16px;padding:12px 0;border-top:1px solid var(--line);font-size:14.5px}
+.contact-list li span{font-weight:800;text-align:right}
+.contact-list a{color:var(--blue)}
+@media (max-width:900px){.split{grid-template-columns:1fr}.row2{grid-template-columns:1fr}}
+.owners{background:linear-gradient(180deg,var(--bg1),var(--bg2))}
+
+.talavera{height:34px;background-color:var(--blue);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='34' height='34' viewBox='0 0 34 34'%3E%3Cg fill='none' stroke='%23F6F3EE' stroke-width='1.3'%3E%3Ccircle cx='17' cy='17' r='4'/%3E%3Cpath d='M17 4c3 4 3 6 0 9c-3-3-3-5 0-9zM17 30c3-4 3-6 0-9c-3 3-3 5 0 9zM4 17c4-3 6-3 9 0c-3 3-5 3-9 0zM30 17c-4-3-6-3-9 0c3 3 5 3 9 0z'/%3E%3Cpath d='M0 6a6 6 0 0 0 6-6M28 0a6 6 0 0 0 6 6M34 28a6 6 0 0 0-6 6M6 34a6 6 0 0 0-6-6'/%3E%3C/g%3E%3C/svg%3E");background-size:34px 34px}
+footer{background:#0E121B;color:#A9AFBC;padding:56px 0 48px;font-size:13.5px}
+.fgrid{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:40px}
+footer h4{color:#fff;font-size:13px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-bottom:12px}
+footer a{color:#D8DCE4}
+footer .glyph-note{font-family:var(--serif);font-style:italic;font-size:22px;color:#fff;margin-top:14px;line-height:1.2}
+footer .src{margin-top:34px;padding-top:20px;border-top:1px solid #222A3A;font-size:12px;color:#7E8697}
+footer .src a{color:#9AA2B2}
+@media (max-width:860px){.fgrid{grid-template-columns:1fr}}
+
+dialog{border:0;padding:0;max-width:920px;width:calc(100% - 32px);background:#fff;color:var(--ink);margin:auto;border-radius:22px;box-shadow:0 30px 80px rgba(0,0,0,.25);overflow:hidden}
+dialog::backdrop{background:rgba(16,21,33,.55);backdrop-filter:blur(4px)}
+.dlg{display:grid;grid-template-columns:1fr 1fr}
+.dlg .l{background:var(--bg1)}
+.dlg .im{aspect-ratio:16/11;background-color:#DCD6CB;background-repeat:no-repeat;position:relative}
+.dlg .im::after{content:"";position:absolute;left:50%;top:50%;width:46px;height:34px;transform:translate(-50%,-50%);border:2px solid #fff;border-radius:4px;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+.dlg dl{display:grid;grid-template-columns:1fr 1.4fr;font-size:13px}
+.dlg dt,.dlg dd{padding:9px 18px;border-bottom:1px solid var(--line)}
+.dlg dt{color:var(--ink-3);font-weight:700;font-size:11px;letter-spacing:.05em;text-transform:uppercase;display:flex;align-items:center}
+.dlg dd{font-weight:700}
+.dlg .r{padding:24px;display:flex;flex-direction:column;gap:12px;position:relative}
+.dlg .x{position:absolute;right:14px;top:12px;width:34px;height:34px;border-radius:10px;border:1px solid var(--line);font-size:18px}
+.dlg h3{font-size:24px;font-weight:800;letter-spacing:-.02em;line-height:1.1;padding-right:40px}
+.dlg .pts{list-style:none}
+.dlg .pts li{border-top:1px solid var(--line);padding:8px 0;font-size:14px}
+.dlg .tp{display:flex;gap:6px;flex-wrap:wrap}
+.dlg .tp span{font-size:11.5px;font-weight:700;background:var(--blue-50);color:var(--blue);padding:4px 8px;border-radius:8px}
+.dlg p.n{font-size:13px;color:var(--ink-2)}
+@media (max-width:760px){.dlg{grid-template-columns:1fr}}
+
+.rv{opacity:0;transform:translateY(14px);transition:opacity .7s ease,transform .7s ease}
+.rv.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}.rv{opacity:1;transform:none}html{scroll-behavior:auto}}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+</head>
+<body>
+
+<div class="app" id="explorar">
+  <div class="stage" id="stage">
+    <div class="pin3d" id="pin"><b id="pinTxt"></b><i></i></div>
+    <div class="scale"><span id="scaleBar"></span><em id="scaleTxt" style="font-style:normal"></em></div>
+    <div class="legal3d">Imagen satelital real de la zona. Ubicación indicativa; el polígono y el proyecto son ilustrativos.</div>
+    <div class="attr">Imagen: Esri, Maxar, Earthstar Geographics</div>
+    <div class="loading">Cargando imagen satelital…</div>
+  </div>
+
+  <header class="top">
+    <a class="brand" href="#explorar"><span class="logo"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17C5 10 8 4.5 12 4.5S19 10 19 17Z"/><path d="M9.5 10.5h5M12 8v5"/><path d="M3 20.5c1.5-1.2 3-1.2 4.5 0s3 1.2 4.5 0 3-1.2 4.5 0 3 1.2 4.5 0"/></svg></span><span>ALTEPEC<small>Suelo industrial · México</small></span></a>
+    <nav class="tabs glass">
+      <a class="on" href="#explorar"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>Explorar</a>
+      <a href="#mapa">Mapa</a>
+      <a href="#proyectos">Proyectos</a>
+      <a href="#portafolio">Portafolio</a>
+      <a href="#inversionistas">Inversionistas</a>
+      <a href="#contacto">Contacto</a>
+    </nav>
+    <div class="right">
+      <a class="ib glass hide-m" href="mailto:andremacouzetruiz@gmail.com" aria-label="Escribir correo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 7l9 6 9-6"/></svg></a>
+      <a class="user glass" id="waUser" href="https://wa.me/524434405815" target="_blank" rel="noopener"><span class="av">AM</span><div><b>André Macouzet</b><small>Asesor en suelo industrial</small></div></a>
+    </div>
+  </header>
+
+  <aside class="left">
+    <div class="site">Portafolio · Suelo para nearshoring</div>
+    <div><h1 id="title"></h1><p class="sub" id="sub" style="margin-top:8px"></p></div>
+    <div class="tools">
+      <button class="on" id="tOver"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg>Resumen</button>
+      <button id="tRot" title="Girar la vista" aria-pressed="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg></button>
+      <button id="tFicha" title="Ficha completa" aria-label="Ficha completa"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg></button>
+      <a href="#mapa" title="Ver en el mapa" aria-label="Ver en el mapa" id="tMap"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg></a>
+      <a href="#contacto" title="Agendar visita" aria-label="Agendar visita"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg></a>
+    </div>
+    <div class="card glass">
+      <div class="card-h">
+        <div><h3 id="cId"></h3><div class="live"><i></i>Disponible</div></div>
+        <button class="go" id="cGo" aria-label="Ver ficha completa"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M7 17L17 7M9 7h8v8"/></svg></button>
+      </div>
+      <div class="stats" id="stats"></div>
+    </div>
+  </aside>
+
+  <div class="typos">
+    <div class="chips glass" id="chips" role="tablist" aria-label="Tipo de proyecto"></div>
+    <div class="metrics" id="metrics"></div>
+  </div>
+
+  <div class="bottom">
+    <div class="card glass">
+      <div class="card-h"><div><h3>Portafolio por vocación</h3><p>Predios disponibles en México</p></div><a class="go" href="#portafolio" aria-label="Ver portafolio"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M7 17L17 7M9 7h8v8"/></svg></a></div>
+      <div class="mix"><div class="legend" id="legend"></div><div class="bars" id="bars"></div></div>
+    </div>
+    <div class="card glass">
+      <div class="card-h"><div><h3>Menor precio</h3><p>Precio por m² más bajo en pesos</p></div></div>
+      <div class="kpi" id="loKpi"></div>
+      <div class="note" id="loNote"></div>
+      <div class="minibars" id="loBars" style="height:50px"></div>
+    </div>
+    <div class="card glass">
+      <div class="card-h"><div><h3>Diferencial de precio</h3><p>Frente a la mediana del portafolio</p></div></div>
+      <div class="kpi" id="dKpi"></div>
+      <div class="minibars" id="dBars"></div>
+      <div class="note" id="dNote"></div>
+    </div>
+  </div>
+
+  <aside class="list glass">
+    <div class="card-h">
+      <div><h3>Portafolio disponible</h3><p id="listSub"></p></div>
+      <div class="auto"><span id="autoLbl">Recorrido</span><div class="prog"><i id="prog"></i></div></div>
+    </div>
+    <select id="mk" class="mk" aria-label="Filtrar por mercado"></select>
+    <div class="items" id="items"></div>
+  </aside>
+</div>
+
+<div class="statement">
+  <div class="wrap">
+    <div class="eyebrow">ALTEPEC · del náhuatl altépetl, el territorio</div>
+    <h2 style="margin-top:16px">Suelo para la industria que <span class="serif">llega a México.</span></h2>
+    <div class="row">
+      <p>Asesoría en compraventa de macrolotes industriales, logísticos y agroindustriales en siete mercados del país, para desarrolladores, fondos y empresas de México, Norteamérica, Europa y Asia.</p>
+      <div class="counters" id="counters"></div>
+    </div>
+  </div>
+</div>
+
+<section id="mapa">
+  <div class="wrap">
+    <div class="sec-h">
+      <div class="eyebrow">01 · Mapa</div>
+      <div><h2>Siete mercados, <span class="serif">un portafolio.</span></h2><p>Cada punto es un predio disponible; su tamaño indica la superficie. Seleccione uno para verlo en 3D sobre la imagen satelital de su zona.</p></div>
+    </div>
+    <div class="mapwrap">
+      <div id="map" role="region" aria-label="Mapa de México con los predios del portafolio"></div>
+      <div class="mkts" id="mkts"></div>
+    </div>
+  </div>
+</section>
+
+<section id="proyectos" style="background:linear-gradient(180deg,var(--bg1),var(--bg2))">
+  <div class="wrap">
+    <div class="sec-h">
+      <div class="eyebrow">02 · Proyectos</div>
+      <div><h2>Lo que se puede <span class="serif">construir.</span></h2><p>Seis tipos de desarrollo que se prestan en el portafolio. En el explorador puede ver cada uno sobre el predio, a escala real y con su área construida estimada.</p></div>
+    </div>
+    <div class="types" id="types"></div>
+  </div>
+</section>
+
+<section id="portafolio">
+  <div class="wrap">
+    <div class="sec-h">
+      <div class="eyebrow">03 · Portafolio</div>
+      <div><h2>Predios <span class="serif">disponibles.</span></h2><p>La ubicación exacta, la información técnica y la documentación de cada predio se comparten mediante ficha completa, previa firma de un acuerdo de confidencialidad.</p></div>
+    </div>
+    <div class="filters" id="filters"></div>
+    <div class="grid" id="grid"></div>
+  </div>
+</section>
+
+<section id="inversionistas" class="intl">
+  <div class="wrap">
+    <div class="sec-h">
+      <div class="eyebrow">04 · Inversionistas internacionales</div>
+      <div><h2>Para compradores de Norteamérica, <span class="serif">Europa y Asia.</span></h2><p>Acompañamos a empresas extranjeras desde la búsqueda de sitio hasta la firma ante notario mexicano, con fichas técnicas en español e inglés y superficies en metros cuadrados, hectáreas y acres.</p></div>
+    </div>
+    <div class="regions">
+      <div class="region rv">
+        <div class="eyebrow">Norteamérica</div><h3>Estados Unidos y Canadá</h3>
+        <div class="big">46.9%<small>de la IED 2025</small></div>
+        <p>Manufactura que se acerca a su mercado: frontera norte, Noreste y Bajío.</p>
+        <ul><li>Estados Unidos <span>15,877 mdd · 38.8%</span></li><li>Canadá <span>≈ 8.1%</span></li></ul>
+        <a href="https://www.gob.mx/se/prensa/mexico-alcanza-cifra-historica-de-inversion-extranjera-directa-en-2025-40-871-millones-de-dolares-crecio-un-10-8-anual" target="_blank" rel="noopener">Fuente: Secretaría de Economía ↗</a>
+      </div>
+      <div class="region rv">
+        <div class="eyebrow">Europa</div><h3>España, Países Bajos, Alemania</h3>
+        <div class="big">10.8%<small>España, 2025</small></div>
+        <p>Automotriz, energía, alimentos y logística en el Bajío, el Centro y el Occidente.</p>
+        <ul><li>España <span>4,431 mdd · 2025</span></li><li>Países Bajos <span>6.3% · ene–sep</span></li></ul>
+        <a href="https://contralinea.com.mx/interno/semana/en-2025-cifra-historica-en-inversion-extranjera-directa-con-40-mil-871-mdd/" target="_blank" rel="noopener">Fuente: SE vía Contralínea ↗</a>
+      </div>
+      <div class="region rv">
+        <div class="eyebrow">Asia</div><h3>Japón, Corea y China</h3>
+        <div class="big">7.0%<small>Japón, ene–sep 2025</small></div>
+        <p>Proveeduría automotriz y electrónica en el Bajío, el Noreste y la frontera.</p>
+        <ul><li>Japón <span>2,882 mdd · ene–sep</span></li><li>Tercer país de origen <span>ene–sep 2025</span></li></ul>
+        <a href="http://sil.gobernacion.gob.mx/Archivos/Documentos/2026/02/asun_5009455_20260204_1770222059.pdf" target="_blank" rel="noopener">Fuente: Informe de la SE al Congreso ↗</a>
+      </div>
+    </div>
+    <div class="how">
+      <div class="rv"><i>01</i><h4>Búsqueda de sitio</h4><p>Predios según superficie, energía, agua, conectividad y plazo, incluida oferta fuera de mercado.</p></div>
+      <div class="rv"><i>02</i><h4>Estructura de adquisición</h4><p>Compra a través de sociedad mexicana. En la franja de 100 km de las fronteras y 50 km de las costas, para fines no residenciales y con aviso a la Secretaría de Relaciones Exteriores.</p></div>
+      <div class="rv"><i>03</i><h4>Due diligence</h4><p>Escritura, régimen de propiedad, gravámenes, uso de suelo y factibilidades de CFE y agua.</p></div>
+      <div class="rv"><i>04</i><h4>Cierre ante notario</h4><p>Firma de la escritura ante notario público mexicano y su inscripción en el Registro Público.</p></div>
+    </div>
+    <div class="langs"><span>Español</span><span>English</span>Atención y fichas técnicas en ambos idiomas.</div>
+  </div>
+</section>
+
+<section id="servicios">
+  <div class="wrap">
+    <div class="sec-h">
+      <div class="eyebrow">05 · Servicios</div>
+      <div><h2>Asesoría integral <span class="serif">en suelo.</span></h2><p>Atendemos a desarrolladores industriales, FIBRAs, fondos de inversión, usuarios finales y brokers corporativos.</p></div>
+    </div>
+    <div class="svc">
+      <div class="rv"><i>01</i><h3>Comercialización de macrolotes</h3><p>Predios de 1.5 a 500 hectáreas en siete mercados, con ficha técnica bajo confidencialidad.</p></div>
+      <div class="rv"><i>02</i><h3>Búsqueda de sitio</h3><p>Identificamos predios según superficie, vocación, presupuesto y plazo del cliente.</p></div>
+      <div class="rv"><i>03</i><h3>Integración de predios</h3><p>Consolidamos parcelas colindantes hasta alcanzar la superficie que requiere un desarrollo industrial.</p></div>
+      <div class="rv"><i>04</i><h3>Revisión documental</h3><p>Escritura, régimen de propiedad, gravámenes, uso de suelo y factibilidades, previo a la carta de intención.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="propietarios" class="owners">
+  <div class="wrap">
+    <div class="sec-h">
+      <div class="eyebrow">06 · Propietarios</div>
+      <div><h2>Comercialice su predio con <span class="serif">compradores institucionales.</span></h2><p>Para predios de 5 hectáreas o más con acceso carretero, en cualquier estado de la República. Presentamos su terreno a desarrolladores y fondos industriales sin divulgar su ubicación ni su identidad.</p></div>
+    </div>
+    <div class="split">
+      <ul class="promise">
+        <li class="rv"><i>01</i><div><h4>Sin costo anticipado</h4><p>Nuestros honorarios se cubren únicamente al escriturar con un comprador presentado por ALTEPEC, conforme a contrato.</p></div></li>
+        <li class="rv"><i>02</i><div><h4>Confidencialidad</h4><p>Los compradores reciben una ficha técnica sin ubicación. La ubicación se comparte solo tras la firma de un acuerdo de confidencialidad.</p></div></li>
+        <li class="rv"><i>03</i><div><h4>Decisión del propietario</h4><p>Cada oferta se presenta íntegra. Toda negociación y firma corresponde exclusivamente al propietario.</p></div></li>
+      </ul>
+      <div class="formcard rv">
+        <form id="fOwner" novalidate>
+          <div class="row2">
+            <div class="f"><label for="o-name">Nombre</label><input id="o-name" name="nombre" autocomplete="name" required></div>
+            <div class="f"><label for="o-tel">Teléfono / WhatsApp</label><input id="o-tel" name="telefono" inputmode="tel" autocomplete="tel" required></div>
+          </div>
+          <div class="row2">
+            <div class="f"><label for="o-mun">Municipio y estado</label><input id="o-mun" name="ubicacion" required></div>
+            <div class="f"><label for="o-ha">Hectáreas aprox.</label><input id="o-ha" name="hectareas" inputmode="decimal" required></div>
+          </div>
+          <div class="f"><label for="o-reg">Régimen de la tierra</label><select id="o-reg" name="regimen"><option>Propiedad privada con escritura</option><option>Ejidal con dominio pleno</option><option>Ejidal (parcela)</option><option>No estoy seguro</option></select></div>
+          <button class="btn" type="submit">Registrar mi predio →</button>
+          <div class="sent" id="oSent"></div>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="contacto">
+  <div class="wrap">
+    <div class="sec-h">
+      <div class="eyebrow">07 · Contacto</div>
+      <div><h2>Solicite una ficha o <span class="serif">agende una visita.</span></h2><p>Respuesta en un día hábil. Visitas de sitio con cita previa.</p></div>
+    </div>
+    <div class="split">
+      <div>
+        <p style="color:var(--ink-2);font-size:16px;max-width:44ch">Oficina en Morelia, Michoacán. Cobertura nacional. Atención en español e inglés.</p>
+        <ul class="contact-list">
+          <li>Teléfono y WhatsApp <span><a href="https://wa.me/524434405815">+52 443 440 5815</a></span></li>
+          <li>Correo <span><a href="mailto:andremacouzetruiz@gmail.com">andremacouzetruiz@gmail.com</a></span></li>
+          <li>Ficha completa <span>Bajo confidencialidad</span></li>
+          <li>Co-corretaje con brokers <span>50/50 por escrito</span></li>
+          <li>Honorario <span>A cargo del vendedor</span></li>
+        </ul>
+      </div>
+      <div class="formcard rv">
+        <form id="fBuyer" novalidate>
+          <div class="row2">
+            <div class="f"><label for="b-co">Empresa</label><input id="b-co" name="empresa" autocomplete="organization" required></div>
+            <div class="f"><label for="b-name">Nombre y cargo</label><input id="b-name" name="nombre" required></div>
+          </div>
+          <div class="row2">
+            <div class="f"><label for="b-country">País de origen de la empresa</label><select id="b-country" name="pais"><option>México</option><option>Estados Unidos</option><option>Canadá</option><option>España</option><option>Alemania</option><option>Países Bajos</option><option>Francia</option><option>Italia</option><option>Japón</option><option>Corea del Sur</option><option>China</option><option>Taiwán</option><option>India</option><option>Otro</option></select></div>
+            <div class="f"><label for="b-lot">Predio de interés</label><select id="b-lot" name="predio"></select></div>
+          </div>
+          <div class="row2">
+            <div class="f"><label for="b-type">Tipo de proyecto</label><select id="b-type" name="proyecto"></select></div>
+            <div class="f"><label for="b-mail">Correo</label><input id="b-mail" name="correo" type="email" autocomplete="email" required></div>
+          </div>
+          <div class="f"><label for="b-notes">Mensaje</label><textarea id="b-notes" name="mensaje" placeholder="Superficie requerida, mercado, plazo y requerimientos de energía y agua"></textarea></div>
+          <button class="btn" type="submit">Enviar →</button>
+          <div class="sent" id="bSent"></div>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="talavera" aria-hidden="true"></div>
+<footer>
+  <div class="wrap">
+    <div class="fgrid">
+      <div>
+        <div class="brand" style="color:#fff"><span class="logo"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17C5 10 8 4.5 12 4.5S19 10 19 17Z"/><path d="M9.5 10.5h5M12 8v5"/><path d="M3 20.5c1.5-1.2 3-1.2 4.5 0s3 1.2 4.5 0 3-1.2 4.5 0 3 1.2 4.5 0"/></svg></span>ALTEPEC</div>
+        <p class="glyph-note">Altépetl: el cerro y el agua; en náhuatl, el territorio.</p>
+      </div>
+      <div><h4>Contacto</h4><p>Morelia, Michoacán, México<br><a href="https://wa.me/524434405815">+52 443 440 5815</a><br><a href="mailto:andremacouzetruiz@gmail.com">andremacouzetruiz@gmail.com</a></p></div>
+      <div><h4>Aviso</h4><p>Intermediación inmobiliaria de suelo. La información de cada predio proviene del propietario o de su representante y está sujeta a verificación en el due diligence del comprador. Precios y disponibilidad sujetos a cambio sin previo aviso. Las visualizaciones 3D y las áreas construidas son ilustrativas. <span id="lic"></span></p></div>
+    </div>
+    <p class="src">Cifras de inversión: <a href="https://www.gob.mx/se/prensa/mexico-alcanza-cifra-historica-de-inversion-extranjera-directa-en-2025-40-871-millones-de-dolares-crecio-un-10-8-anual" target="_blank" rel="noopener">Secretaría de Economía</a> · <a href="https://contralinea.com.mx/interno/semana/en-2025-cifra-historica-en-inversion-extranjera-directa-con-40-mil-871-mdd/" target="_blank" rel="noopener">Contralínea</a> · <a href="http://sil.gobernacion.gob.mx/Archivos/Documentos/2026/02/asun_5009455_20260204_1770222059.pdf" target="_blank" rel="noopener">Informe de la SE al Congreso</a> (preliminares). Imagen satelital: Esri, Maxar, Earthstar Geographics. Mapa: <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> · © OpenMapTiles · © colaboradores de OpenStreetMap.</p>
+  </div>
+</footer>
+
+<dialog id="dlg" aria-labelledby="dTitle"></dialog>
+
+<script src="data/inventario.js"></script>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const CONFIG={whatsapp:"524434405815",email:"andremacouzetruiz@gmail.com",licencia:""};
+const INV=window.INVENTARIO, MK=window.MERCADOS;
+const $=s=>document.querySelector(s);
+const fmt=n=>Math.round(n).toLocaleString('es-MX');
+const fHa=h=>h.toLocaleString('es-MX',{maximumFractionDigits:1});
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const desk=()=>innerWidth>1180;
+const money=t=>t.moneda==='USD'?'USD ':'$';
+const totOf=t=>t.total??(t.precioM2?t.ha*1e4*t.precioM2:null);
+const mS=t=>{const n=totOf(t);if(!n)return'A consultar';const c=money(t);return n>=1e9?c+(n/1e9).toLocaleString('es-MX',{maximumFractionDigits:2})+' mil M':c+(n/1e6).toLocaleString('es-MX',{maximumFractionDigits:1})+' M'};
+
+/* tipos de proyecto */
+const TYPES=[
+  {k:'parque',n:'Parque industrial',d:'Naves de 10,000 a 15,000 m² con patios de maniobra, vialidades internas y caseta de acceso.',spec:['Naves de 13 m de altura','Por etapas']},
+  {k:'logistico',n:'Centro logístico',d:'Naves cross-dock con andenes en ambos lados y patio de tráileres para distribución.',spec:['Naves de 30,000 m² o más','Andenes en dos frentes']},
+  {k:'bts',n:'Nave a la medida',d:'Una planta build-to-suit con oficinas, estacionamiento y patio de maniobras.',spec:['Un solo usuario','Oficinas integradas']},
+  {k:'plaza',n:'Plaza comercial',d:'Tienda ancla, locales, restaurante con autoservicio y estacionamiento.',spec:['Ancla y locales','Frente carretero']},
+  {k:'mixtos',n:'Usos mixtos',d:'Torres de oficinas y hotel sobre podio comercial, vivienda y una plaza pública.',spec:['Oficinas, hotel y vivienda','Plaza pública']},
+  {k:'agro',n:'Agroindustria',d:'Empaque, cámaras de frío, invernaderos y huerta para exportación.',spec:['Empaque y frío','Invernaderos y huerta']}
+];
+const defType=t=>t.uso==='Logístico'?'logistico':t.uso==='Agroindustria'?'agro':t.uso==='Usos mixtos'?'mixtos':(t.ha<6?'bts':'parque');
+const typesFor=t=>{const s=new Set([defType(t)]);if(t.uso==='Industrial'){s.add('parque');s.add('bts');s.add('logistico')}if(t.uso==='Logístico'){s.add('bts');s.add('parque')}if(t.uso==='Usos mixtos')s.add('plaza');if(t.uso==='Agroindustria')s.add('bts');if(t.ha<12)s.add('plaza');return TYPES.filter(x=>s.has(x.k)).map(x=>x.n)};
+
+/* geometría del predio, en metros */
+function rng(seed){let h=2166136261;for(const c of seed)h=Math.imul(h^c.charCodeAt(0),16777619);return()=>{h+=0x6D2B79F5;let t=h;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}
+function plotOf(t){
+  const R=rng(t.id),a=t.forma[0],A=t.ha*1e4,w=Math.sqrt(A*a),h=A/w;
+  const j=()=>(R()-.5)*Math.min(w,h)*.10,x0=-w/2,z0=-h/2;
+  return {pts:[[x0,z0+j()],[x0+w*.55,z0+j()*.5],[x0+w,z0+j()],[x0+w+j()*.5,z0+h*.5],[x0+w,z0+h],[x0+w*.45,z0+h],[x0,z0+h]],w,h};
+}
+function inPoly(x,z,P){let c=false;for(let i=0,j=P.length-1;i<P.length;j=i++){const[xi,zi]=P[i],[xj,zj]=P[j];if(((zi>z)!==(zj>z))&&(x<(xj-xi)*(z-zi)/(zj-zi)+xi))c=!c}return c}
+
+/* materiales */
+const BOX=new THREE.BoxGeometry(1,1,1),SPH=new THREE.SphereGeometry(1,10,8),CYL=new THREE.CylinderGeometry(1,1,1,20);
+const mat=(c,o={})=>new THREE.MeshStandardMaterial({color:c,roughness:.75,...o});
+const M={
+  pad:mat(0xE8E1D0,{roughness:1}),edge:mat(0x1E4AA8,{emissive:0x1E4AA8,emissiveIntensity:.45,roughness:.4}),
+  conc:mat(0xEFEDE7,{roughness:.95}),asph:mat(0x8E929A,{roughness:.95}),road:mat(0x7B8089,{roughness:.95}),
+  nave:mat(0xFBFCFD,{roughness:.5}),glass:mat(0x9FB9DF,{roughness:.12,metalness:.25}),
+  glassT:mat(0xDCE9F6,{roughness:.1,metalness:.05,transparent:true,opacity:.66,side:THREE.DoubleSide}),dark:mat(0x2B3446,{roughness:.6}),
+  blue:mat(0x1E4AA8,{roughness:.5}),clay:mat(0xB4532A,{roughness:.7}),cream:mat(0xF3E9D8,{roughness:.8}),
+  water:mat(0x7FB3D8,{roughness:.1,metalness:.2}),tree:mat(0xffffff,{roughness:.9}),car:mat(0xffffff,{roughness:.5}),truck:mat(0xffffff,{roughness:.5}),
+  solar:mat(0x223A6B,{roughness:.25,metalness:.4}),reserve:new THREE.MeshStandardMaterial({color:0xC9DAB4,roughness:1,transparent:true,opacity:.5})
+};
+const TREE_C=[0x8FB97B,0x7EAD6E,0xA2C98B,0x6F9E62],CAR_C=[0xffffff,0xD8DCE2,0x2B3446,0x9AA3AE,0xB4532A,0x1E4AA8,0xE9E4D8];
+
+/* proyectos ilustrativos, a escala */
+function makeProject(t,type){
+  const P=plotOf(t),G=new THREE.Group(),mass=new THREE.Group();mass.name='mass';G.add(mass);
+  const S=Math.max(P.w,P.h),R=rng(t.id+type),inset=Math.max(8,S*.03);
+  const shape=new THREE.Shape(P.pts.map(([x,z])=>new THREE.Vector2(x,-z)));
+  const pad=new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{depth:.6,bevelEnabled:false}),M.pad);pad.rotation.x=-Math.PI/2;pad.receiveShadow=true;G.add(pad);
+  const loop=[...P.pts,P.pts[0]].map(([x,z])=>new THREE.Vector3(x,.9,z)),path=new THREE.CurvePath();for(let i=0;i<loop.length-1;i++)path.add(new THREE.LineCurve3(loop[i],loop[i+1]));
+  const er=Math.max(.9,S/420);G.add(new THREE.Mesh(new THREE.TubeGeometry(path,loop.length*8,er,6,false),M.edge));
+  P.pts.forEach(([x,z])=>{const p=new THREE.Mesh(CYL,M.edge);p.scale.set(er*1.4,er*9,er*1.4);p.position.set(x,er*4.5,z);G.add(p)});
+
+  const fits=(x,z,w,d,m=0)=>[[-1,-1],[1,-1],[1,1],[-1,1],[0,0]].every(([u,v])=>inPoly(x+u*(w/2+m),z+v*(d/2+m),P.pts));
+  let delay=0,built=0,gfa=0,modules=0,maxH=0,etapa=false;
+  const bld=(w,h,d,m,x,z,y=.6,floors=1)=>{const b=new THREE.Mesh(BOX,m);b.scale.set(w,h,d);b.position.set(x,y+h/2,z);b.castShadow=b.receiveShadow=true;b.userData={g:1,h,y,d:delay};delay+=40;mass.add(b);built+=w*d*(y<2?1:0);gfa+=w*d*floors;maxH=Math.max(maxH,h+y);return b};
+  const slab=(w,d,m,x,z,y=.65)=>{const s=new THREE.Mesh(BOX,m);s.scale.set(w,.2,d);s.position.set(x,y,z);s.receiveShadow=true;G.add(s);return s};
+  const I={tree:[],car:[],truck:[],sky:[]};
+  const tree=(x,z,s)=>I.tree.push([x,z,s]),car=(x,z,r)=>I.car.push([x,z,r]),truck=(x,z,r)=>I.truck.push([x,z,r]);
+  const cells=(cw,cd,gap)=>{const o=[];for(let z=P.h/2-inset-cd/2;z>-P.h/2+inset+cd/2-1;z-=cd+gap)for(let x=-P.w/2+inset+cw/2;x<P.w/2-inset-cw/2+1;x+=cw+gap)if(fits(x,z,cw,cd))o.push([x,z]);return o};
+  const zone=(mw,md)=>{let W=Math.min(mw,P.w-2*inset),D=Math.min(md,P.h-2*inset);for(let k=0;k<16;k++){const z=P.h/2-inset-D/2;if(fits(0,z,W,D))return{W,D,x:0,z};W*=.9;D*=.9}return{W:P.w*.4,D:P.h*.4,x:0,z:0}};
+  const reserve=()=>{const g=new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{depth:.1,bevelEnabled:false}),M.reserve);g.rotation.x=-Math.PI/2;g.position.y=.62;g.receiveShadow=true;G.add(g)};
+  const skylights=(x,z,w,d,h)=>{const n=Math.max(2,Math.round(w/45));for(let s=0;s<n;s++)I.sky.push([x-w*.4+s*(w*.8/(n-1)),h+.95,z,2.2,d*.8])};
+
+  if(type==='parque'||type==='logistico'){
+    const L=type==='logistico';let cw=L?330:185,cd=L?250:150,gap=L?30:24;
+    const f=Math.min(1,(P.w-2*inset)/(cw+gap),(P.h-2*inset)/(cd+gap));if(f<1){cw*=Math.max(.42,f);cd*=Math.max(.42,f);gap*=Math.max(.6,f)}
+    const C=cells(cw,cd,gap),cap=L?16:44,used=C.slice(0,cap);if(C.length>cap){reserve();etapa=true}
+    used.forEach(([x,z])=>{
+      slab(cw,cd,M.conc,x,z,.7);
+      const w=cw*(L?.9:.84),d=cd*(L?.46:.56),h=L?14:13,nz=L?z:z-cd*.12;
+      bld(w,h,d,M.nave,x,nz,.8);skylights(x,nz,w,d,h+.8);modules++;
+      slab(w,cd*(L?.22:.26),M.asph,x,L?z+cd*.36:z+cd*.3,.75);if(L)slab(w,cd*.22,M.asph,x,z-cd*.36,.75);
+      const docks=Math.max(2,Math.round(w/14));
+      for(let s=0;s<docks;s++){const tx=x-w*.45+s*(w*.9/(docks-1));if(R()<.55)truck(tx,nz+d/2+9,0);if(L&&R()<.55)truck(tx,nz-d/2-9,Math.PI)}
+      for(let s=0;s<=Math.round(cw/22);s++)tree(x-cw/2+s*22,z+cd/2+gap*.4,4+R()*2);
+    });
+    if(used.length){const[gx]=used[0];bld(10,6,8,M.blue,gx-cw/2+6,P.h/2-inset+3,.7)}
+  }
+  if(type==='bts'){
+    const Z=zone(440,330),w=Z.W*.64,d=Z.D*.48,x=Z.x-Z.W*.13,z=Z.z-Z.D*.16;
+    slab(Z.W,Z.D,M.conc,Z.x,Z.z,.7);
+    bld(w,13,d,M.nave,x,z,.8);skylights(x,z,w,d,13.8);modules=1;
+    const ow=Math.max(22,w*.26);bld(ow,9,16,M.glass,x-w/2+ow/2,z+d/2+8,.8,2);
+    const tc=Z.W*.24;slab(tc,d,M.asph,Z.x+Z.W/2-tc/2,z,.75);
+    for(let s=0;s<Math.max(2,Math.round(d/12));s++)if(R()<.75)truck(Z.x+Z.W/2-tc+12,z-d*.42+s*12,Math.PI/2);
+    const pz=Z.z+Z.D/2-Z.D*.14;slab(w*.8,Z.D*.2,M.asph,x+w*.1,pz,.75);
+    for(let r=0;r<2;r++)for(let s=0;s<Math.round(w*.74/3);s++)if(R()<.7)car(x-w*.28+s*3,pz-4+r*8,r?Math.PI:0);
+    for(let s=0;s<=Math.round(Z.W/16);s++)tree(Z.x-Z.W/2+s*16,Z.z+Z.D/2-2,3.5+R()*2);
+    if(Z.W*Z.D<P.w*P.h*.6)reserve();
+  }
+  if(type==='plaza'){
+    const Z=zone(400,260);slab(Z.W,Z.D,M.asph,Z.x,Z.z,.7);
+    const aw=Math.min(110,Z.W*.36),ad=Math.min(80,Z.D*.42),bx=Z.x-Z.W/2+aw/2+6,bz=Z.z-Z.D/2+ad/2+6;
+    bld(aw,12,ad,M.cream,bx,bz,.8);bld(aw*.4,3,1.5,M.blue,bx,bz+ad/2+.6,8.5);modules++;
+    const sl=Z.W-aw-18,sx=bx+aw/2+6+sl/2;bld(sl,7,24,M.nave,sx,Z.z-Z.D/2+18,.8);bld(sl,.6,5,M.dark,sx,Z.z-Z.D/2+32.5,6.5);modules+=Math.max(3,Math.round(sl/12));
+    const rw=Math.min(90,Z.D*.45);bld(24,7,rw,M.nave,Z.x+Z.W/2-18,Z.z-Z.D/2+30+rw/2+6,.8);modules+=Math.round(rw/12);
+    bld(20,6,14,M.clay,Z.x+Z.W/2-20,Z.z+Z.D/2-16,.8);modules++;
+    bld(3,26,3,M.dark,Z.x-Z.W/2+10,Z.z+Z.D/2-6,.8);bld(10,5,1.2,M.blue,Z.x-Z.W/2+10,Z.z+Z.D/2-6,22);
+    const pz0=Z.z-Z.D/2+ad+18,pz1=Z.z+Z.D/2-12;
+    for(let z=pz0;z<pz1;z+=15)for(let x=Z.x-Z.W/2+8;x<Z.x+Z.W/2-46;x+=2.8){if(R()<.6)car(x,z,0);if(R()<.6)car(x,z+5.5,Math.PI)}
+    for(let z=pz0+12;z<pz1;z+=30)for(let x=Z.x-Z.W/2+20;x<Z.x+Z.W/2-46;x+=34)tree(x,z,3.4+R());
+    if(Z.W*Z.D<P.w*P.h*.6)reserve();
+  }
+  if(type==='mixtos'){
+    const Z=zone(360,300);slab(Z.W,Z.D,M.conc,Z.x,Z.z,.7);
+    const pw=Z.W*.6,pd=Z.D*.34,pz=Z.z-Z.D/2+pd/2+8,big=Z.W>200;
+    bld(pw,12,pd,M.cream,Z.x,pz,.8,3);modules++;
+    const n=big?3:2,hs=[96,72,54];
+    for(let i=0;i<n;i++){const tx=Z.x-pw/2+pw*(i+.5)/n,s=Math.min(34,pw/n*.6),h=hs[i]*(big?1:.7);bld(s,h,s,M.glass,tx,pz,12.8,Math.round(h/3.8));modules++}
+    const bw=Math.min(70,Z.W*.28);bld(bw,24,16,M.cream,Z.x-Z.W/2+bw/2+6,Z.z+Z.D*.05,.8,7);bld(bw,24,16,M.cream,Z.x+Z.W/2-bw/2-6,Z.z+Z.D*.05,.8,7);modules+=2;
+    const qz=Z.z+Z.D*.3;slab(Z.W*.5,Z.D*.26,M.cream,Z.x,qz,.75);
+    const fo=new THREE.Mesh(CYL,M.water);fo.scale.set(Math.min(7,Z.W*.03),.6,Math.min(7,Z.W*.03));fo.position.set(Z.x,1.1,qz);G.add(fo);
+    for(let a=0;a<12;a++){const an=a/12*Math.PI*2;tree(Z.x+Math.cos(an)*Z.W*.2,qz+Math.sin(an)*Z.D*.1,3.4+R())}
+    for(let s=0;s<=Math.round(Z.W/14);s++)tree(Z.x-Z.W/2+s*14,Z.z+Z.D/2-3,3.4+R());
+    if(Z.W*Z.D<P.w*P.h*.6)reserve();
+  }
+  if(type==='agro'){
+    const Z=zone(380,Math.min(380,P.h*.9));
+    const ew=Math.min(120,Z.W*.42),ed=Math.min(60,Z.D*.2),ex=Z.x-Z.W*.26,ez=Z.z+Z.D*.3;
+    slab(Z.W*.5,Z.D*.34,M.conc,ex,ez,.7);
+    bld(ew,11,ed,M.nave,ex,ez,.8);modules++;bld(ew*.42,9,ed*.7,M.cream,ex+ew*.71,ez,.8);
+    for(let s=0;s<3;s++)truck(ex-ew*.3+s*16,ez+ed/2+9,0);
+    for(let s=0;s<2;s++){const tk=new THREE.Mesh(CYL,M.cream);tk.scale.set(6,9,6);tk.position.set(ex-ew*.5-10,5.1,ez-ed*.2+s*14);tk.castShadow=true;G.add(tk)}
+    const gl=Math.min(220,Z.D*.5),gz=Z.z-Z.D*.12,gn=Math.max(2,Math.floor(Z.W*.9/10));
+    for(let s=0;s<gn;s++){const gx=Z.x-Z.W*.45+s*10;if(!fits(gx,gz,9,gl))continue;const gh=new THREE.Mesh(new THREE.CylinderGeometry(4.6,4.6,gl,12,1,true,0,Math.PI),M.glassT);gh.rotation.set(Math.PI/2,Math.PI/2,0);gh.position.set(gx,.8,gz);gh.castShadow=true;G.add(gh);built+=9.2*gl;gfa+=9.2*gl;modules++}
+    let c=0;for(let z=-P.h/2+inset;z<P.h/2-inset&&c<2600;z+=8)for(let x=-P.w/2+inset;x<P.w/2-inset&&c<2600;x+=8){if(x>Z.x-Z.W/2-6&&x<Z.x+Z.W/2+6&&z>Z.z-Z.D/2-6&&z<Z.z+Z.D/2+6)continue;if(inPoly(x,z,P.pts)){tree(x,z,2.4+R()*.8);c++}}
+    for(let s=0;s<5;s++){const sp=new THREE.Mesh(BOX,M.solar);sp.scale.set(Z.W*.18,.3,4);sp.position.set(Z.x+Z.W*.28,1.6,ez-ed*.3+s*7);sp.rotation.x=-.3;G.add(sp)}
+  }
+
+  const inst=(geo,m,list,fn)=>{if(!list.length)return;const im=new THREE.InstancedMesh(geo,m,list.length),mm=new THREE.Matrix4(),q=new THREE.Quaternion(),v=new THREE.Vector3(),sc=new THREE.Vector3(),c=new THREE.Color();list.forEach((it,i)=>{fn(it,v,q,sc,c);mm.compose(v,q,sc);im.setMatrixAt(i,mm);im.setColorAt(i,c)});im.castShadow=im.receiveShadow=true;G.add(im)};
+  const up=new THREE.Vector3(0,1,0);
+  inst(SPH,M.tree,I.tree.slice(0,3000),([x,z,s],v,q,sc,c)=>{v.set(x,s*1.15+.6,z);q.identity();sc.set(s,s*1.2,s);c.setHex(TREE_C[(Math.abs(x*7+z*3)|0)%4])});
+  inst(BOX,M.car,I.car.slice(0,1400),([x,z,r],v,q,sc,c)=>{v.set(x,1.4,z);q.setFromAxisAngle(up,r);sc.set(1.8,1.4,4.4);c.setHex(CAR_C[(Math.abs(x*13+z*7)|0)%7])});
+  inst(BOX,M.truck,I.truck.slice(0,900),([x,z,r],v,q,sc,c)=>{v.set(x,2.6,z);q.setFromAxisAngle(up,r);sc.set(2.6,4,15);c.setHex((Math.abs(x)|0)%5?0xF4F6F9:0x1E4AA8)});
+  inst(BOX,M.glass,I.sky,([x,y,z,w,d],v,q,sc,c)=>{v.set(x,y,z);q.identity();sc.set(w,.35,d);c.setHex(0x9FB9DF)});
+  return {G,P,S,metrics:{gfa,modules,etapa,maxH:Math.max(maxH,8),cov:built/(t.ha*1e4)}};
+}
+
+/* imagen satelital real */
+const lon2x=(lon,z)=>(lon+180)/360*2**z;
+const lat2y=(lat,z)=>{const r=lat*Math.PI/180;return(1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*2**z};
+const mpp=(lat,z)=>156543.03392*Math.cos(lat*Math.PI/180)/2**z;
+const tileURL=(z,x,y)=>`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+const zoomFor=(lat,S)=>Math.max(12,Math.min(18,Math.round(Math.log2(256*mpp(lat,0)/(S*.8)))));
+const groundCache=new Map();
+const loadImg=u=>new Promise(r=>{const i=new Image();i.crossOrigin='anonymous';i.onload=()=>r(i);i.onerror=()=>r(null);i.src=u});
+async function ground(t,S){
+  if(groundCache.has(t.id))return groundCache.get(t.id);
+  const z=zoomFor(t.lat,S),N=7,cx=lon2x(t.lon,z),cy=lat2y(t.lat,z),tx0=Math.floor(cx)-3,ty0=Math.floor(cy)-3;
+  const imgs=await Promise.all([...Array(N*N)].map((_,k)=>loadImg(tileURL(z,tx0+k%N,ty0+(k/N|0)))));
+  const cv=document.createElement('canvas');cv.width=cv.height=N*256;const ctx=cv.getContext('2d');
+  ctx.fillStyle='#E9E3D8';ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.filter='saturate(0.82) brightness(1.04) contrast(0.96)';imgs.forEach((im,k)=>{if(im)ctx.drawImage(im,(k%N)*256,(k/N|0)*256)});ctx.filter='none';
+  const px=(cx-tx0)*256,py=(cy-ty0)*256,g=ctx.createRadialGradient(px,py,cv.width*.2,px,py,cv.width*.5);g.addColorStop(0,'rgba(238,233,224,0)');g.addColorStop(1,'rgba(238,233,224,1)');ctx.fillStyle=g;ctx.fillRect(0,0,cv.width,cv.height);
+  const tex=new THREE.CanvasTexture(cv);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=8;
+  const tm=256*mpp(t.lat,z),res={tex,size:N*tm,ox:(tx0+N/2-cx)*tm,oz:(ty0+N/2-cy)*tm};
+  groundCache.set(t.id,res);return res;
+}
+
+/* escena */
+const stage=$('#stage');
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.02;renderer.outputColorSpace=THREE.SRGBColorSpace;
+stage.prepend(renderer.domElement);
+const scene=new THREE.Scene();scene.fog=new THREE.Fog(0xEEE9E0,800,3000);
+const cam=new THREE.PerspectiveCamera(32,1,1,40000);
+scene.add(new THREE.HemisphereLight(0xffffff,0xD8CFBF,1.2));
+const sun=new THREE.DirectionalLight(0xfff6ea,2.2);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.bias=-.0004;scene.add(sun,sun.target);
+const controls=new OrbitControls(cam,renderer.domElement);
+controls.enableDamping=true;controls.dampingFactor=.06;controls.maxPolarAngle=1.22;controls.minPolarAngle=.35;controls.enablePan=false;controls.autoRotate=!reduced;controls.autoRotateSpeed=.4;
+function resize(){const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h,false);cam.aspect=w/h;if(desk())cam.setViewOffset(w,h,0,36,w,h);else cam.clearViewOffset();cam.updateProjectionMatrix()}
+new ResizeObserver(resize).observe(stage);
+
+let world=null,groundMesh=null,shadowCatch=null,cur=-1,typeK='parque',grow0=0,token=0;
+const dispose=o=>o.traverse(n=>{if(n.geometry&&n.geometry!==BOX&&n.geometry!==SPH&&n.geometry!==CYL)n.geometry.dispose()});
+async function setWorld(t,type){
+  const my=++token;stage.classList.add('busy');
+  const proj=makeProject(t,type),gr=await ground(t,proj.S);
+  if(my!==token){dispose(proj.G);return}
+  if(world){scene.remove(world.G);dispose(world.G)}
+  if(groundMesh){scene.remove(groundMesh,shadowCatch);groundMesh.geometry.dispose();shadowCatch.geometry.dispose()}
+  groundMesh=new THREE.Mesh(new THREE.PlaneGeometry(gr.size,gr.size),new THREE.MeshBasicMaterial({map:gr.tex,toneMapped:false}));
+  groundMesh.rotation.x=-Math.PI/2;groundMesh.position.set(gr.ox,-.3,gr.oz);
+  shadowCatch=new THREE.Mesh(new THREE.PlaneGeometry(gr.size,gr.size),new THREE.ShadowMaterial({opacity:.28}));shadowCatch.rotation.x=-Math.PI/2;shadowCatch.position.set(gr.ox,-.05,gr.oz);shadowCatch.receiveShadow=true;
+  scene.add(groundMesh,shadowCatch);
+  world=proj;scene.add(world.G);
+  const S=proj.S,dist=S*(desk()?2.5:2.3)+180;
+  scene.fog.near=dist*1.1;scene.fog.far=dist*3.4;
+  sun.position.set(-S*.55,S*1.1,S*.45);Object.assign(sun.shadow.camera,{left:-S*.75,right:S*.75,top:S*.75,bottom:-S*.75,near:1,far:S*4});sun.shadow.camera.updateProjectionMatrix();sun.shadow.normalBias=S/900;
+  const az=controls.getAzimuthalAngle()||.7;controls.target.set(0,0,0);
+  cam.position.set(Math.sin(az)*dist*.8,dist*.6,Math.cos(az)*dist*.8);
+  controls.minDistance=Math.max(80,dist*.35);controls.maxDistance=dist*1.7;cam.far=dist*8;cam.updateProjectionMatrix();
+  grow0=performance.now();
+  const target=S*.25,nice=[25,50,100,200,250,500,1000,2000].reduce((a,b)=>Math.abs(b-target)<Math.abs(a-target)?b:a);
+  $('#scaleTxt').textContent=nice>=1000?(nice/1000)+' km':nice+' m';world.nice=nice;
+  stage.classList.remove('busy','fade');showMetrics(proj.metrics,type);
+  setTimeout(()=>{if(typeof step==='function'){const n=INV[step(1)];if(n){const q=plotOf(n);ground(n,Math.max(q.w,q.h))}}},1500);
+}
+const pv=new THREE.Vector3();
+function tick(now){
+  controls.update();
+  if(world){
+    for(const b of world.G.getObjectByName('mass').children){if(!b.userData.g)continue;const k=Math.min(1,Math.max(0,(now-grow0-b.userData.d)/700)),e=reduced?1:1-Math.pow(1-k,3),h=Math.max(.01,b.userData.h*e);b.scale.y=h;b.position.y=b.userData.y+h/2}
+    const W=stage.clientWidth,H=stage.clientHeight;
+    pv.set(0,world.metrics.maxH+world.S*.04,0).project(cam);
+    $('#pin').style.transform=`translate(${(pv.x*.5+.5)*W}px,${(-pv.y*.5+.5)*H}px) translate(-50%,-100%)`;
+    const a=new THREE.Vector3(-world.nice/2,0,world.P.h/2).project(cam),b=new THREE.Vector3(world.nice/2,0,world.P.h/2).project(cam);
+    $('#scaleBar').style.width=Math.max(16,Math.abs(b.x-a.x)*.5*W).toFixed(0)+'px';
+  }
+  renderer.render(scene,cam);requestAnimationFrame(tick);
+}
+
+/* interfaz del explorador */
+const mxn=INV.filter(t=>t.precioM2&&t.moneda!=='USD'),priced=mxn.map(t=>t.precioM2).sort((a,b)=>a-b);
+const median=priced.length%2?priced[(priced.length-1)/2]:(priced[priced.length/2-1]+priced[priced.length/2])/2;
+const lo=mxn.reduce((a,b)=>b.precioM2<a.precioM2?b:a);
+const thumbStyle=t=>{const z=Math.max(11,zoomFor(t.lat,Math.sqrt(t.ha*1e4))-1),x=lon2x(t.lon,z),y=lat2y(t.lat,z);return `background-image:url(${tileURL(z,Math.floor(x),Math.floor(y))});background-size:200% 200%;background-position:${Math.min(100,Math.max(0,((x%1)-.25)*200)).toFixed(0)}% ${Math.min(100,Math.max(0,((y%1)-.25)*200)).toFixed(0)}%`};
+
+$('#items').innerHTML=INV.map(t=>`<button class="it" data-id="${t.id}" data-m="${t.mercado}"><div class="thumb" style="${thumbStyle(t)}"></div><div><h4>${t.titulo}</h4><div class="z">${t.zona} · ${t.estado}</div><dl><dt>Superficie</dt><dt>Mercado</dt><dd>${fHa(t.ha)} ha</dd><dd>${MK[t.mercado].n}</dd><dt>Precio</dt><dt>Vocación</dt><dd>${mS(t)}</dd><dd><span class="pill b">${t.uso}</span></dd></dl></div></button>`).join('');
+$('#mk').innerHTML='<option value="all">Todos los mercados</option>'+Object.entries(MK).map(([k,m])=>`<option value="${k}">${m.n} · ${INV.filter(t=>t.mercado==k).length}</option>`).join('');
+let VIEW=INV.map((_,i)=>i);
+function applyMk(){const v=$('#mk').value;VIEW=INV.map((t,i)=>[t,i]).filter(([t])=>v==='all'||t.mercado==v).map(([,i])=>i);document.querySelectorAll('.it').forEach(e=>e.style.display=(v==='all'||e.dataset.m===v)?'':'none');const L=VIEW.map(i=>INV[i]);$('#listSub').textContent=`${L.length} predios · ${fmt(L.reduce((s,t)=>s+t.ha,0))} ha · ${new Set(L.map(t=>t.estado)).size} estados`}
+$('#mk').onchange=()=>{applyMk();if(!VIEW.includes(cur))select(VIEW[0],true)};applyMk();
+
+const U=[['Industrial','#1E4AA8','#E6ECF7'],['Logístico','#2D7A5A','#E2F1EA'],['Agroindustria','#B4532A','#F6E7DF'],['Usos mixtos','#7A5BA6','#EEE8F6']];
+const byU=U.map(([u,col,bg])=>{const L=INV.filter(t=>t.uso===u);return{u,col,bg,n:L.length,ha:L.reduce((s,t)=>s+t.ha,0)}}).filter(x=>x.n);
+$('#legend').innerHTML=byU.map(x=>`<div style="--c:${x.col};--cb:${x.bg}">${x.u}<span>${x.n} · ${fmt(x.ha)} ha</span></div>`).join('');
+$('#bars').innerHTML=byU.map(x=>{const p=Math.round(x.n/INV.length*100);return`<div class="bar" style="--c:${x.col};--cb:${x.bg}"><b>${p}%</b><div data-h="${Math.max(14,p*1.5)}" style="height:0"></div></div>`}).join('');
+requestAnimationFrame(()=>document.querySelectorAll('#bars .bar div').forEach(d=>d.style.height=Math.min(100,d.dataset.h)+'%'));
+$('#loKpi').innerHTML=`$${fmt(lo.precioM2)}<small> MXN/m²</small>`;$('#loNote').textContent=`${lo.id} · ${lo.zona}, ${lo.estado}`;
+$('#loBars').innerHTML=`<span class="lo" style="height:${Math.max(8,lo.precioM2/median*60)}%"></span><span style="height:60%" title="Mediana $${fmt(median)}"></span>`;
+
+$('#chips').innerHTML=TYPES.map(x=>`<button data-k="${x.k}" role="tab">${x.n}</button>`).join('');
+$('#chips').addEventListener('click',e=>{const b=e.target.closest('button');if(b){pauseAuto();setType(b.dataset.k)}});
+const markType=k=>document.querySelectorAll('#chips button').forEach(b=>{b.classList.toggle('on',b.dataset.k===k);b.setAttribute('aria-selected',b.dataset.k===k)});
+function setType(k){typeK=k;markType(k);if(cur>=0){stage.classList.add('fade');setTimeout(()=>setWorld(INV[cur],k),reduced?0:250)}}
+function showMetrics(m,type){const lbl={parque:'naves',logistico:'naves',bts:'nave',plaza:'ancla, locales y restaurante',mixtos:'edificios',agro:'empaque e invernaderos'}[type];
+  $('#metrics').innerHTML=`<span>Construcción estimada <b>${fmt(m.gfa)} m²</b></span><span><b>${m.modules}</b> ${lbl}${m.etapa?' · etapa 1':''}</span><span>Cobertura <b>${Math.round(m.cov*100)}%</b></span><span>Altura máx. <b>${Math.round(m.maxH)} m</b></span>`}
+
+const ic={a:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M4 9h16M9 4v16"/></svg>',p:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',f:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 12l4-4M3 12l4 4M21 12l-4-4M21 12l-4 4"/></svg>',u:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V10l7-4 7 4v11"/></svg>'};
+function render(i){
+  const t=INV[i];cur=i;
+  $('#title').textContent=t.titulo;$('#sub').textContent=`${t.zona}, ${t.estado}. ${t.puntos[0]}.`;$('#cId').textContent=`${t.id} · ${MK[t.mercado].n}`;
+  const fr=t.frente?`${t.frente}<small>m</small>`:`${fmt(Math.sqrt(t.ha*1e4*t.forma[0]))}<small>m aprox.</small>`;
+  $('#stats').innerHTML=`<div class="stat"><div class="k">Superficie ${ic.a}</div><div class="v">${fHa(t.ha)}<small>ha</small></div></div><div class="stat"><div class="k">${t.frente?'Frente':'Lado'} ${ic.f}</div><div class="v">${fr}</div></div><div class="stat"><div class="k">Precio m² ${ic.p}</div><div class="v">${t.precioM2?money(t)+fmt(t.precioM2):'<small style="margin:0">A consultar</small>'}</div></div><div class="stat"><div class="k">Vocación ${ic.u}</div><div class="v" style="font-size:16px">${t.uso}</div></div>`;
+  $('#pinTxt').textContent=`${t.id} · ${fHa(t.ha)} ha · ${t.estado}`;
+  $('#waUser').href='https://wa.me/524434405815?text='+encodeURIComponent(`Buen día. Me interesa el predio ${t.id} (${fHa(t.ha)} ha, ${t.zona}, ${t.estado}). ¿Me comparte la ficha completa?`);
+  if(t.precioM2&&t.moneda!=='USD'){const d=t.precioM2-median;$('#dKpi').innerHTML=`${d>0?'+':'−'}$${fmt(Math.abs(d))}<small> MXN/m²</small>`}else if(t.precioM2)$('#dKpi').innerHTML=`USD ${fmt(t.precioM2)}<small> /m²</small>`;else $('#dKpi').innerHTML='<small>A consultar</small>';
+  $('#dNote').textContent=t.moneda==='USD'?`Precio en dólares. Mediana en pesos: $${fmt(median)}/m²`:`Mediana del portafolio: $${fmt(median)} MXN/m²`;
+  const mx=Math.max(...priced);$('#dBars').innerHTML=mxn.slice().sort((a,b)=>a.precioM2-b.precioM2).map(x=>`<span class="${x.id===t.id?'me':''}" style="height:${Math.max(6,Math.sqrt(x.precioM2/mx)*100)}%" title="${x.id} · $${fmt(x.precioM2)}/m²"></span>`).join('');
+  document.querySelectorAll('.it').forEach(e=>e.classList.toggle('on',e.dataset.id===t.id));
+  const el=document.querySelector(`.it[data-id="${t.id}"]`);if(el&&desk()){const box=$('#items');box.scrollTo({top:el.getBoundingClientRect().top-box.getBoundingClientRect().top+box.scrollTop-8,behavior:'smooth'})}
+}
+function select(i,user,type){
+  if(user)pauseAuto();if(i===cur&&!type)return;
+  const t=INV[i],k=type||defType(t);stage.classList.add('fade');
+  setTimeout(()=>{render(i);typeK=k;markType(k);setWorld(t,k)},reduced?0:300);
+}
+window.__select=(id,type)=>{const i=INV.findIndex(t=>t.id===id);if(i>=0){select(i,true,type);$('#explorar').scrollIntoView({behavior:'smooth'})}};
+const step=d=>{const k=VIEW.indexOf(cur);return VIEW[((k<0?0:k)+d+VIEW.length)%VIEW.length]};
+$('#items').addEventListener('click',e=>{const b=e.target.closest('.it');if(b)select(INV.findIndex(t=>t.id===b.dataset.id),true)});
+$('#tRot').onclick=()=>{controls.autoRotate=!controls.autoRotate;$('#tRot').classList.toggle('on',controls.autoRotate);$('#tRot').setAttribute('aria-pressed',controls.autoRotate)};$('#tRot').classList.toggle('on',controls.autoRotate);
+$('#tFicha').onclick=()=>openFicha(INV[cur].id);$('#cGo').onclick=()=>openFicha(INV[cur].id);
+$('#tMap').onclick=()=>setTimeout(()=>flyTo(INV[cur]),500);
+addEventListener('keydown',e=>{if(['SELECT','INPUT','TEXTAREA'].includes(e.target.tagName)||document.querySelector('dialog[open]')||scrollY>innerHeight*.6)return;if(e.key==='ArrowDown'||e.key==='ArrowRight'){e.preventDefault();select(step(1),true)}if(e.key==='ArrowUp'||e.key==='ArrowLeft'){e.preventDefault();select(step(-1),true)}});
+
+const DUR=10000;let t0=performance.now(),pausedUntil=0;
+function pauseAuto(){pausedUntil=performance.now()+30000;$('#autoLbl').textContent='En pausa'}
+renderer.domElement.addEventListener('pointerdown',pauseAuto);
+(function autoloop(now){
+  const visible=scrollY<innerHeight*.6&&!document.hidden;
+  if(now<pausedUntil||!visible){$('#prog').style.width='0';t0=now}
+  else{$('#autoLbl').textContent='Recorrido';const k=(now-t0)/DUR;$('#prog').style.width=Math.min(100,k*100)+'%';if(k>=1){t0=now;select(step(1),false)}}
+  requestAnimationFrame(autoloop);
+})(performance.now());
+
+resize();render(0);typeK=defType(INV[0]);markType(typeK);setWorld(INV[0],typeK);requestAnimationFrame(tick);
+
+/* declaración */
+$('#counters').innerHTML=`<div><b>${INV.length}</b><span>Predios</span></div><div><b>${fmt(INV.reduce((s,t)=>s+t.ha,0))}</b><span>Hectáreas</span></div><div><b>${new Set(INV.map(t=>t.estado)).size}</b><span>Estados</span></div><div><b>7</b><span>Mercados</span></div>`;
+
+/* mapa real: MapLibre + OpenFreeMap */
+let map=null;
+const popHTML=t=>`<div class="pop"><b>${t.id} · ${t.titulo}</b><small>${fHa(t.ha)} ha · ${t.zona}, ${t.estado}</small><button onclick="window.__select('${t.id}')">Ver en 3D</button></div>`;
+function flyTo(t){if(!map)return;map.flyTo({center:[t.lon,t.lat],zoom:9.5,speed:1.2});new maplibregl.Popup({offset:10}).setLngLat([t.lon,t.lat]).setHTML(popHTML(t)).addTo(map)}
+if(window.maplibregl){
+  map=new maplibregl.Map({container:'map',style:'https://tiles.openfreemap.org/styles/positron',bounds:[[-117.5,14.2],[-86.5,33]],fitBoundsOptions:{padding:30},attributionControl:{compact:true},cooperativeGestures:true});
+  map.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-right');
+  map.on('load',()=>{
+    for(const l of map.getStyle().layers){if(l.type==='symbol'&&l.layout&&l.layout['text-field'])map.setLayoutProperty(l.id,'text-field',['coalesce',['get','name:es'],['get','name:latin'],['get','name']])}
+    map.addSource('p',{type:'geojson',data:{type:'FeatureCollection',features:INV.map(t=>({type:'Feature',properties:{id:t.id,ha:t.ha},geometry:{type:'Point',coordinates:[t.lon,t.lat]}}))}});
+    map.addLayer({id:'halo',type:'circle',source:'p',paint:{'circle-radius':['interpolate',['linear'],['sqrt',['get','ha']],1,9,22,30],'circle-color':'#1E4AA8','circle-opacity':.14}});
+    map.addLayer({id:'pts',type:'circle',source:'p',paint:{'circle-radius':['interpolate',['linear'],['sqrt',['get','ha']],1,4.5,22,13],'circle-color':'#1E4AA8','circle-stroke-color':'#fff','circle-stroke-width':1.6}});
+    map.on('click','pts',e=>{const t=INV.find(x=>x.id===e.features[0].properties.id);new maplibregl.Popup({offset:10}).setLngLat([t.lon,t.lat]).setHTML(popHTML(t)).addTo(map)});
+    map.on('mouseenter','pts',()=>map.getCanvas().style.cursor='pointer');map.on('mouseleave','pts',()=>map.getCanvas().style.cursor='');
+  });
+}
+const BB={};INV.forEach(t=>{const b=BB[t.mercado]||(BB[t.mercado]=[[180,90],[-180,-90]]);b[0][0]=Math.min(b[0][0],t.lon-.15);b[0][1]=Math.min(b[0][1],t.lat-.15);b[1][0]=Math.max(b[1][0],t.lon+.15);b[1][1]=Math.max(b[1][1],t.lat+.15)});
+$('#mkts').innerHTML=Object.entries(MK).map(([k,m])=>{const n=INV.filter(t=>t.mercado==k);return `<button class="mkt" data-k="${k}"><div class="k"><span>${m.estados}</span><span>${n.length} · ${fmt(n.reduce((s,t)=>s+t.ha,0))} ha</span></div><h3>${m.n}</h3><p>${m.p}</p></button>`}).join('');
+$('#mkts').addEventListener('click',e=>{const b=e.target.closest('.mkt');if(!b)return;document.querySelectorAll('.mkt').forEach(x=>x.classList.toggle('on',x===b));if(map)map.fitBounds(BB[b.dataset.k],{padding:80,maxZoom:10})});
+
+/* tipos de proyecto: renders */
+$('#types').innerHTML=TYPES.map((x,i)=>`<article class="type rv"><div class="img" id="ty-${x.k}"></div><div class="b"><div class="n">${String(i+1).padStart(2,'0')}</div><h3>${x.n}</h3><p>${x.d}</p><div class="spec">${x.spec.map(s=>`<span>${s}</span>`).join('')}</div><button data-k="${x.k}">Verlo sobre el predio actual →</button></div></article>`).join('');
+$('#types').addEventListener('click',e=>{const b=e.target.closest('button[data-k]');if(!b)return;pauseAuto();$('#explorar').scrollIntoView({behavior:'smooth'});setTimeout(()=>setType(b.dataset.k),300)});
+async function renderTypes(){
+  const tr=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});tr.setPixelRatio(1);tr.setSize(640,400);tr.shadowMap.enabled=true;tr.toneMapping=THREE.ACESFilmicToneMapping;tr.outputColorSpace=THREE.SRGBColorSpace;tr.setClearColor(0xEEE9E0,1);
+  const sc=new THREE.Scene();sc.fog=new THREE.Fog(0xEEE9E0,900,2400);sc.add(new THREE.HemisphereLight(0xffffff,0xD8CFBF,1.25));
+  const sl=new THREE.DirectionalLight(0xfff6ea,2.2);sl.position.set(-300,520,240);sl.castShadow=true;sl.shadow.mapSize.set(2048,2048);Object.assign(sl.shadow.camera,{left:-420,right:420,top:420,bottom:-420,far:2000});sc.add(sl);
+  const gnd=new THREE.Mesh(new THREE.PlaneGeometry(6000,6000),new THREE.MeshStandardMaterial({color:0xE4DCCB,roughness:1}));gnd.rotation.x=-Math.PI/2;gnd.position.y=-.3;gnd.receiveShadow=true;sc.add(gnd);
+  const tc=new THREE.PerspectiveCamera(30,1.6,1,8000);
+  const sample={parque:{id:'S-A',ha:24,forma:[1.35,1]},logistico:{id:'S-B',ha:22,forma:[1.4,1]},bts:{id:'S-C',ha:7,forma:[1.3,1]},plaza:{id:'S-D',ha:6,forma:[1.5,1]},mixtos:{id:'S-E',ha:7,forma:[1.2,1]},agro:{id:'S-F',ha:12,forma:[1.3,1]}};
+  for(const x of TYPES){
+    await new Promise(r=>setTimeout(r,40));
+    const p=makeProject(sample[x.k],x.k);p.G.traverse(n=>{if(n.userData&&n.userData.g){n.scale.y=n.userData.h;n.position.y=n.userData.y+n.userData.h/2}});
+    sc.add(p.G);const d=p.S*.92+40;tc.position.set(d*.6,d*.52,d*.68);tc.lookAt(0,0,0);tr.render(sc,tc);
+    $('#ty-'+x.k).style.backgroundImage=`url(${tr.domElement.toDataURL('image/jpeg',.86)})`;sc.remove(p.G);dispose(p.G);
+  }
+  tr.dispose();
+}
+const tyIO=new IntersectionObserver(es=>{if(es.some(e=>e.isIntersecting)){tyIO.disconnect();renderTypes()}},{rootMargin:'600px'});tyIO.observe($('#types'));
+
+/* portafolio */
+let gm='all';
+$('#filters').innerHTML=`<button class="chip on" data-m="all">Todos · ${INV.length}</button>`+Object.entries(MK).map(([k,m])=>`<button class="chip" data-m="${k}">${m.n} · ${INV.filter(t=>t.mercado==k).length}</button>`).join('');
+$('#filters').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;gm=b.dataset.m;document.querySelectorAll('#filters .chip').forEach(x=>x.classList.toggle('on',x===b));grid()});
+function grid(){$('#grid').innerHTML=INV.filter(t=>gm==='all'||t.mercado==gm).sort((a,b)=>b.ha-a.ha).map(t=>`<article class="lot"><div class="img" style="${thumbStyle(t)}"><span class="tag">${t.id}</span><span class="av2">● Disponible</span></div><div class="b"><div class="z">${t.estado} · ${t.uso}</div><h3>${t.titulo}</h3><div class="z">${t.zona}</div><div class="ft"><div class="ha">${fHa(t.ha)}<small>ha</small></div><div class="px"><span>Precio</span>${mS(t)}</div></div><div class="act"><button class="p" onclick="window.__select('${t.id}')">Ver en 3D</button><button onclick="window.__ficha('${t.id}')">Ficha</button></div></div></article>`).join('')}
+grid();
+
+/* ficha */
+const dlg=$('#dlg');
+function openFicha(id){
+  const t=INV.find(x=>x.id===id);if(!t)return;const tot=totOf(t);
+  dlg.innerHTML=`<div class="dlg"><div class="l"><div class="im" style="${thumbStyle(t)}"></div><dl><dt>Mercado</dt><dd>${MK[t.mercado].n}</dd><dt>Estado</dt><dd>${t.estado}</dd><dt>Zona</dt><dd>${t.zona}</dd><dt>Superficie</dt><dd>${fHa(t.ha)} ha · ${fmt(t.ha*1e4)} m² · ${fmt(t.ha*2.47105)} acres</dd><dt>Vocación</dt><dd>${t.uso}</dd>${t.regimen!=='Por confirmar'?`<dt>Situación</dt><dd>${t.regimen}</dd>`:''}<dt>Precio por m²</dt><dd>${t.precioM2?`${t.moneda} ${fmt(t.precioM2)}`:'A consultar'}</dd><dt>Precio total</dt><dd>${tot?`${t.moneda} ${fmt(tot)}`:'A consultar'}</dd></dl></div>
+  <div class="r"><button class="x" data-x aria-label="Cerrar">×</button><div class="eyebrow">Ficha · ${t.id}</div><h3 id="dTitle">${t.titulo}</h3><ul class="pts">${t.puntos.map(p=>`<li>${p}</li>`).join('')}</ul>
+  <div><div class="eyebrow" style="color:var(--ink-3);margin-bottom:6px">Proyectos que admite</div><div class="tp">${typesFor(t).map(n=>`<span>${n}</span>`).join('')}</div></div>
+  <p class="n">Ubicación exacta, escritura y plano con la ficha completa, previa firma de acuerdo de confidencialidad. Disponible en español e inglés.</p>
+  <form id="fLot" novalidate><div class="f"><label for="l-name">Nombre y empresa</label><input id="l-name" name="nombre" required></div><div class="f"><label for="l-mail">Correo o teléfono</label><input id="l-mail" name="contacto" required></div><button class="btn" type="submit">Solicitar ficha completa →</button><div class="sent" id="lSent"></div></form></div></div>`;
+  send(dlg.querySelector('#fLot'),`ALTEPEC · Ficha ${t.id} (${fHa(t.ha)} ha, ${t.zona}, ${t.estado})`,'lSent');dlg.showModal();pauseAuto();
+}
+window.__ficha=openFicha;
+dlg.addEventListener('click',e=>{if(e.target===dlg||e.target.closest('[data-x]'))dlg.close()});
+const qf=new URLSearchParams(location.search).get('ficha');if(qf)setTimeout(()=>openFicha(qf),300);
+
+/* formularios */
+$('#b-lot').innerHTML='<option>Búsqueda a la medida</option>'+INV.map(t=>`<option>${t.id} · ${fHa(t.ha)} ha · ${t.zona}, ${t.estado}</option>`).join('');
+$('#b-type').innerHTML=TYPES.map(x=>`<option>${x.n}</option>`).join('')+'<option>Otro</option>';
+function send(form,title,outId){form.addEventListener('submit',ev=>{ev.preventDefault();const out=form.querySelector('#'+outId),bad=[...form.querySelectorAll('[required]')].find(i=>!i.value.trim());
+  if(bad){bad.focus();out.style.display='block';out.textContent='Falta: '+bad.labels[0].textContent+'.';return}
+  const text=[title,...[...new FormData(form)].map(([k,v])=>`${k}: ${v}`)].join('\n');open('https://wa.me/'+CONFIG.whatsapp+'?text='+encodeURIComponent(text),'_blank','noopener');
+  out.style.display='block';out.textContent='Su solicitud se abrió en WhatsApp. Envíela para completar el registro; un asesor le responderá en un día hábil.'})}
+send($('#fOwner'),'ALTEPEC · Predio ofrecido','oSent');send($('#fBuyer'),'ALTEPEC · Contacto','bSent');
+if(CONFIG.licencia)$('#lic').textContent='Licencia de agente inmobiliario: '+CONFIG.licencia+'.';
+
+/* navegación */
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{rootMargin:'0px 0px -8% 0px'});
+document.querySelectorAll('.rv').forEach(el=>io.observe(el));
+const secs=['explorar','mapa','proyectos','portafolio','inversionistas','contacto'];
+addEventListener('scroll',()=>{let on='explorar';for(const s of secs){const el=document.getElementById(s);if(el&&el.getBoundingClientRect().top<innerHeight*.4)on=s}document.querySelectorAll('.tabs a').forEach(a=>a.classList.toggle('on',a.getAttribute('href')==='#'+on))},{passive:true});
+</script>
+</body>
+</html>
